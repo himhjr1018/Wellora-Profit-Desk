@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { db, ROOT, getSettings, setSettings, todayIST } from './db.js';
+import { db, ROOT, getSettings, setSettings, todayIST, daysAgo } from './db.js';
 import { summary, listOrders } from './summary.js';
 import { syncAll, connections, lastSyncs, loadDemo, clearDemo, metaApp, metaAuthUrl, metaFinishAuth, metaStatus, metaRedirect } from './sync.js';
 import { randomBytes } from 'node:crypto';
@@ -29,10 +29,10 @@ async function api(req, res, url) {
   const { pathname: p, searchParams: q } = url;
   const m = req.method;
 
-  if (p === '/api/summary' && m === 'GET') return send(res, 200, summary(num(q.get('days') ?? 30)));
+  if (p === '/api/summary' && m === 'GET') return send(res, 200, summary(num(q.get('days') ?? 30), q.get('from') || '', q.get('to') || ''));
 
   if (p === '/api/orders' && m === 'GET')
-    return send(res, 200, listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '' }));
+    return send(res, 200, listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '', from: q.get('from') || '', to: q.get('to') || '' }));
 
   let mm;
   if ((mm = p.match(/^\/api\/orders\/(.+)$/)) && m === 'PATCH') {
@@ -75,6 +75,25 @@ async function api(req, res, url) {
       .run(validDay(b.day), b.campaign || 'Manual entry', num(b.spend));
     return send(res, 200, { ok: true });
   }
+  // Prepaid Meta wallet: bank entries marked "Money out" + category "Ads" are recharges.
+  // Meta's own daily deductions are never entered in the bank, they are the spend in the Meta data (plus GST).
+  if (p === '/api/meta-funds' && m === 'GET') {
+    const s = getSettings(), mul = 1 + s.ad_gst / 100;
+    const rec = db.prepare("SELECT COALESCE(SUM(amount),0) total, COUNT(*) n, MAX(day) last FROM bank_txns WHERE type='out' AND category='Ads'").get();
+    const metaSpend = db.prepare("SELECT COALESCE(SUM(spend),0) a FROM ad_spend WHERE COALESCE(source,'') != 'manual'").get().a;
+    const recent = db.prepare("SELECT COALESCE(SUM(spend),0) a FROM ad_spend WHERE COALESCE(source,'') != 'manual' AND day >= ?").get(daysAgo(6)).a;
+    const used = metaSpend * mul, balance = s.meta_opening_balance + rec.total - used, perDay = recent * mul / 7;
+    return send(res, 200, { opening: s.meta_opening_balance, recharged: rec.total, recharges: rec.n, lastRecharge: rec.last, used, balance, perDay,
+      daysLeft: perDay > 0 ? Math.max(0, balance) / perDay : null, gst: s.ad_gst });
+  }
+
+  // Supplier wallet: for now just the money you added, i.e. Bank entries that are Money out + category Supplier.
+  // Charges and payouts on orders are not tracked here yet.
+  if (p === '/api/supplier-wallet' && m === 'GET') {
+    const r = db.prepare("SELECT COALESCE(SUM(amount),0) total, COUNT(*) n, MAX(day) last FROM bank_txns WHERE type='out' AND category='Supplier'").get();
+    return send(res, 200, { balance: r.total, entries: r.n, last: r.last });
+  }
+
   if (p === '/api/meta' && m === 'GET') {
     const d = num(q.get('days') ?? 30);
     // Either ?days=N, or an explicit ?from=YYYY-MM-DD&to=YYYY-MM-DD window (used by the day pickers)
@@ -124,8 +143,10 @@ async function api(req, res, url) {
 
   if (p === '/api/bank' && m === 'GET') {
     const days = num(q.get('days') ?? 30);
-    const from = days > 0 ? new Date(Date.now() - (days - 1) * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) : '0000-00-00';
-    return send(res, 200, db.prepare('SELECT * FROM bank_txns WHERE day >= ? ORDER BY day DESC, id DESC').all(from));
+    const ok = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+    const from = ok(q.get('from')) ? q.get('from') : days > 0 ? new Date(Date.now() - (days - 1) * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) : '0000-00-00';
+    const to = ok(q.get('to')) ? q.get('to') : '9999-12-31';
+    return send(res, 200, db.prepare('SELECT * FROM bank_txns WHERE day >= ? AND day <= ? ORDER BY day DESC, id DESC').all(from, to));
   }
   if (p === '/api/bank' && m === 'POST') {
     const b = await readBody(req);

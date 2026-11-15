@@ -95,6 +95,7 @@ export const DEFAULTS = {
   ad_gst: 18,            // GST Meta adds on top of ad spend (set 0 if you claim it back as input credit)
   fixed_monthly: 3000,
   opening_balance: 0,
+  meta_opening_balance: 0, // money already sitting in your Meta ad account before you started tracking recharges
   expected_rto: 25       // no longer used (kept so older saved settings still load)
 };
 

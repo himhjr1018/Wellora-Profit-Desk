@@ -42,7 +42,8 @@ input{background:var(--field);border:1px solid var(--line);border-radius:7px;pad
 .kpi .k{font-size:12px;color:var(--muted)}
 .kpi .v{font:700 22px var(--display);margin-top:3px;font-variant-numeric:tabular-nums}
 .kpi .n{font-size:12px;color:var(--muted);margin-top:2px}
-.kpi.hero{grid-column:span 2}
+.kpi.hero,.kpi.wide{grid-column:span 2}
+.kpi.wide .v{font-size:26px}
 .kpi.hero .v{font-size:32px}
 .kpi.good{background:var(--good-bg);border-color:transparent}.kpi.good .v{color:var(--good)}
 .kpi.bad{background:var(--bad-bg);border-color:transparent}.kpi.bad .v{color:var(--bad)}
@@ -67,6 +68,8 @@ td.r,th.r{text-align:right}
 .banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .conn{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--bar)}.dot.ok{background:var(--good)}.dot.err{background:var(--bad)}
+.range-pick{display:inline-flex;gap:10px;flex-wrap:wrap;align-items:center}
+.range-pick label{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
 .seg button{border:0;border-radius:0;background:var(--surface);padding:7px 12px;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
@@ -75,7 +78,7 @@ td.r,th.r{text-align:right}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 iframe{width:100%;height:1100px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 @media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.three{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:480px){.kpis{grid-template-columns:minmax(0,1fr)}.kpi.hero{grid-column:auto}.fields{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.kpis{grid-template-columns:minmax(0,1fr)}.kpi.hero,.kpi.wide{grid-column:auto}.fields{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -85,7 +88,7 @@ iframe{width:100%;height:1100px;border:1px solid var(--line);border-radius:10px;
     <div class="ctrl">
       <span class="sync-note" id="syncnote"></span>
       <select id="range" aria-label="Date range">
-        <option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
+        <option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
         <option value="90">Last 90 days</option><option value="0">All time</option>
       </select>
       <button class="primary" id="syncbtn">Sync now</button>
@@ -109,10 +112,43 @@ const api = async (path, opts = {}) => {
 };
 const days = () => $('#range').value;
 // Stored values stay the same; only the names shown on screen change.
-let metaSel = { p: '30', date: '' };   // Meta Ads tab filter, kept while you switch tabs
+// Every tab opens on the last 30 days. Each tab keeps its own choice while you switch tabs, and resets to 30 days when the page is reloaded.
+let metaSel = { p: '30' };   // Meta Ads tab filter
+let ovSel = { p: '30' };     // Overview tab filter
+let ordSel = { p: '30' };    // Orders tab date filter
+let bankSel = { p: '30' };   // Bank tab date filter
+let ordFilter = { status: '', q: '' }; // Orders tab status and search, kept when the date filter changes
+
+// Date filter used by the Overview: presets plus a single-day picker
+// "Today" is the Indian date, because order and ad days are stored in IST
+const isoDay = off => new Date(Date.now() - off * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const FILTERS = [['today', 'Today'], ['yesterday', 'Yesterday'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['all', 'All time']];
+const filterQuery = sel => ({ today: `from=${isoDay(0)}&to=${isoDay(0)}`, yesterday: `from=${isoDay(1)}&to=${isoDay(1)}`,
+  7: `from=${isoDay(6)}&to=${isoDay(0)}`, 30: `from=${isoDay(29)}&to=${isoDay(0)}`, 90: `from=${isoDay(89)}&to=${isoDay(0)}`, all: 'days=0',
+  range: `from=${sel.from}&to=${sel.to}` }[sel.p] || 'days=30');
+const filterLabel = sel => ({ today: isoDay(0), yesterday: isoDay(1), 7: `${isoDay(6)} to ${isoDay(0)}`, 30: `${isoDay(29)} to ${isoDay(0)}`,
+  90: `${isoDay(89)} to ${isoDay(0)}`, all: 'All time', range: sel.from === sel.to ? sel.from : `${sel.from} to ${sel.to}` }[sel.p] || '');
+const filterBar = (sel, label) => `<div class="card" style="margin-bottom:16px"><div class="form" style="margin:0;align-items:center">
+  <div class="seg" role="group" aria-label="Date range">${FILTERS.map(([k, l]) => `<button type="button" data-p="${k}" class="${sel.p === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <span class="range-pick" title="Choose a start date, then an end date. One date alone shows just that day.">
+    <label>From<input type="date" class="rfrom" value="${sel.p === 'range' ? sel.from : ''}" max="${isoDay(0)}"></label>
+    <label>To<input type="date" class="rto" value="${sel.p === 'range' ? sel.to : ''}" max="${isoDay(0)}"></label></span>
+  <span class="mut">Showing ${label}</span></div></div>`;
+const bindFilterBar = (el, apply) => {
+  el.querySelectorAll('.seg button').forEach(b => b.onclick = () => apply({ p: b.dataset.p }));
+  const f = el.querySelector('.rfrom'), t = el.querySelector('.rto');
+  const go = () => {
+    let a = f.value, b = t.value;
+    if (!a && !b) return;
+    if (!a) a = b; if (!b) b = a;          // one date alone means that single day
+    if (a > b) [a, b] = [b, a];            // dates entered back to front are swapped
+    apply({ p: 'range', from: a, to: b });
+  };
+  if (f) f.onchange = go; if (t) t.onchange = go;
+};
 const STATUSES =['new', 'shipped', 'delivered', 'rto', 'cancelled'];
 const STATUS_LABEL = { new: 'Placed', shipped: 'Shipped', delivered: 'Delivered', rto: 'RTO', cancelled: 'Cancelled' };
-const today = () => new Date().toLocaleDateString('en-CA');
+const today = () => isoDay(0);
 let status = null;
 
 /* ---------- chart ---------- */
@@ -243,28 +279,44 @@ function metaBlock(st, last) {
 /* ---------- views ---------- */
 const views = {
   async overview(el) {
-    const d = await api('/summary?days=' + days());
+    const d = await api('/summary?' + filterQuery(ovSel));
     const k = d.kpi;
+    const rangeLabel = ovSel.p === 'all' ? `All time (from ${d.from})` : d.from === d.to ? d.from : `${d.from} to ${d.to}`;
     const tile = (label, v, note = '', c = '') => `<div class="kpi ${c}"><div class="k">${label}</div><div class="v">${v}</div><div class="n">${note}</div></div>`;
     const empty = !k.orders && !status.syncs.length;
-    el.innerHTML = `
+    const inTransit = d.counts.new + d.counts.shipped;
+    const costsNote = `ads ${inr(k.adSpend)}, ad GST ${inr(k.adGst)}${k.fixed ? ' and fixed costs ' + inr(k.fixed) : ''}`;
+    el.innerHTML = filterBar(ovSel, rangeLabel) + `
       ${empty ? `<div class="banner"><span>No data yet. Connect Shopify and Meta in <a href="#settings">Settings</a>, or load sample data to look around.</span><button id="demo">Load sample data</button></div>` : ''}
       <div class="kpis">
-        ${tile('Net profit', inr(k.net), `${d.from} to ${d.to}. After ads, ${inr(k.adGst)} ad GST and ${inr(k.fixed)} fixed costs`, 'hero ' + (k.net >= 0 ? 'good' : 'bad'))}
+        ${tile('Net profit if all orders are delivered', inr(k.netIfDelivered),
+          `Counts all ${inTransit} Placed and Shipped orders as delivered (${inr(k.expectedPending)} profit) and leaves cancelled orders out. Orders already returned stay as losses. After ${costsNote}.`,
+          'hero ' + (k.netIfDelivered >= 0 ? 'good' : 'bad'))}
+        ${tile('Net profit after delivery and RTO', inr(k.net),
+          `Only orders with a final outcome: ${k.delivered} delivered, ${k.rto} returned (gross ${inr(k.gross)}). After ${costsNote}.`,
+          'hero ' + (k.net >= 0 ? 'good' : 'bad'))}
+        ${tile('Product sales if all orders are delivered', inr(k.salesIfDelivered),
+          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out.`, 'wide')}
+        ${tile('Product sales after delivery and RTO', inr(k.salesDelivered),
+          `Only the ${d.counts.delivered} delivered orders. ${d.counts.rto} returned orders (${inr(k.rtoValue)}) are not counted.`, 'wide')}
         ${tile('Ad spend', inr(k.adSpend),`+ ${inr(k.adGst)} GST · ROAS ${k.roas ? k.roas.toFixed(2) + 'x' : 'n/a'} · CPA ${inr(k.cpa)}`)}
         ${tile('Bank balance', inr(k.bankBalance), `In ${inr(k.bankIn)} · Out ${inr(k.bankOut)} this period`)}
-        ${tile('Orders', k.placed.toLocaleString('en-IN'), `Sales ${inr(k.sales)} · ${inr(k.profitPerOrder)} profit per order`)}
+        ${tile('Orders', k.orders.toLocaleString('en-IN'), `All orders, including ${d.counts.cancelled} cancelled. Sales ${inr(k.sales)} · ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'profit per order appears once orders are Delivered or RTO'))}
         ${tile('RTO rate', k.rtoRate.toFixed(1) + '%', `${k.rto} returned of ${k.delivered + k.rto} settled`, k.rtoRate > 30 ? 'bad' : '')}
-        ${tile('Gross profit', inr(k.gross), 'Delivered minus RTO losses, before ads')}
-        ${tile('Still in transit', inr(k.expectedPending), `${d.counts.new + d.counts.shipped} orders, profit if all are delivered`)}
       </div>
       <div class="two">
         <div class="card"><h2>Daily profit and ad spend</h2>
           <div class="legend"><span><i style="background:var(--accent)"></i>Gross profit</span><span><i style="background:var(--bar)"></i>Ad spend</span><span><i style="background:var(--good)"></i>Net after ads</span></div>
+          <p class="mut" style="font-size:12px;margin:0 0 6px">Profit is counted on the day an order was placed, and only once it is marked Delivered or RTO. Ad spend is counted as it happens, so the line dips while orders are still on the way.</p>
           ${chart(d.daily)}</div>
-        <div class="card"><h2>Order status</h2>${Object.entries(d.counts).map(([s, n]) =>
-          `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span class="pill ${s}">${STATUS_LABEL[s] || s}</span><b>${n}</b></div>`).join('')}
-          <div class="mut" style="margin-top:10px;font-size:12px">COD share ${k.codShare.toFixed(0)}% of orders</div></div>
+        <div class="card"><h2>Order status</h2>
+          <table><thead><tr><th>Status</th><th class="r">Orders</th><th class="r">Share</th><th class="r">Order value</th></tr></thead><tbody>
+          ${STATUSES.map(s => `<tr><td><span class="pill ${s}">${STATUS_LABEL[s]}</span></td><td class="r"><b>${d.counts[s] || 0}</b></td>
+            <td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>`).join('')}
+          <tr style="font-weight:600"><td>All orders</td><td class="r">${k.orders}</td><td class="r mut">100%</td><td class="r">${inr(Object.values(d.statusValue).reduce((a, v) => a + v, 0))}</td></tr></tbody></table>
+          <div class="mut" style="margin:12px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em">By payment</div>
+          <table><tbody><tr><td>COD</td><td class="r">${d.byPayment.cod || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.cod || 0) / k.orders * 100) : 0}%</td></tr>
+            <tr><td>Prepaid</td><td class="r">${d.byPayment.prepaid || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.prepaid || 0) / k.orders * 100) : 0}%</td></tr></tbody></table></div>
       </div>
       <div class="three">
         <div class="card"><h2>Bank movement by category</h2>${d.bankByCategory.length ? `<table><tbody>${d.bankByCategory.map(b =>
@@ -276,16 +328,19 @@ const views = {
           <p class="mut" style="font-size:12px;margin:10px 0 0">A large negative gap usually means COD remittances from the courier are still pending.</p></div>
       </div>`;
     $('#demo')?.addEventListener('click', async () => { await api('/demo', { method: 'POST' }); render(); });
+    bindFilterBar(el, sel => { ovSel = sel; render(); });
   },
 
   async orders(el) {
-    el.innerHTML = `<div class="card"><div class="form">
-      <label>Status<select id="f-status"><option value="">All</option>${STATUSES.map(s => `<option value="${s}">${STATUS_LABEL[s]}</option>`).join('')}</select></label>
-      <label>Search<input id="f-q" placeholder="Order, customer, city, product"></label>
+    el.innerHTML = filterBar(ordSel, filterLabel(ordSel)) + `<div class="card"><div class="form">
+      <label>Status<select id="f-status"><option value="">All</option>${STATUSES.map(s => `<option value="${s}" ${ordFilter.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></label>
+      <label>Search<input id="f-q" placeholder="Order, customer, city, product" value="${esc(ordFilter.q)}"></label>
       <span class="mut" id="ocount"></span></div>
       <div class="scroll" id="otable"></div></div>`;
+    bindFilterBar(el, sel => { ordSel = sel; render(); });
     const load = async () => {
-      const rows = await api(`/orders?days=${days()}&status=${$('#f-status').value}&q=${encodeURIComponent($('#f-q').value)}`);
+      ordFilter = { status: $('#f-status').value, q: $('#f-q').value };
+      const rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
       $('#ocount').textContent = rows.length + ' orders';
       $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
         <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
@@ -317,13 +372,8 @@ const views = {
   },
 
   async meta(el) {
-    const iso = off => { const x = new Date(); x.setDate(x.getDate() - off); return x.toLocaleDateString('en-CA'); };
-    const PRESETS = [['today', 'Today'], ['yesterday', 'Yesterday'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['all', 'All time']];
     const sel = metaSel;
-    const query = { today: `from=${iso(0)}&to=${iso(0)}`, yesterday: `from=${iso(1)}&to=${iso(1)}`,
-      7: `from=${iso(6)}&to=${iso(0)}`, 30: `from=${iso(29)}&to=${iso(0)}`, 90: `from=${iso(89)}&to=${iso(0)}`, all: 'days=0',
-      day: `from=${sel.date}&to=${sel.date}` }[sel.p] || 'days=30';
-    const d = await api('/meta?' + query);
+    const d = await api('/meta?' + filterQuery(sel));
     const t = d.total;
     const rangeLabel = sel.p === 'all' ? 'All time' : d.from === d.to ? d.from : `${d.from} to ${d.to}`;
     const f = (n, dp = 0) => (n === null || n === undefined || !isFinite(n)) ? '–' : n.toLocaleString('en-IN', { maximumFractionDigits: dp, minimumFractionDigits: dp });
@@ -349,11 +399,7 @@ const views = {
     rows.forEach((r, i) => { if (i % step === 0) svg += `<text x="${x(i)}" y="${H - 7}" text-anchor="middle" font-size="10" fill="var(--muted)">${r.day.slice(5)}</text>`; });
     svg += '</svg>';
 
-    el.innerHTML = `
-      <div class="card" style="margin-bottom:16px"><div class="form" style="margin:0;align-items:center">
-        <div class="seg" role="group" aria-label="Date range">${PRESETS.map(([k, l]) => `<button type="button" data-p="${k}" class="${sel.p === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-        <label style="flex-direction:row;align-items:center;gap:8px">Pick a day<input type="date" id="mday" value="${sel.p === 'day' ? sel.date : ''}" max="${iso(0)}"></label>
-        <span class="mut">Showing ${rangeLabel}</span></div></div>
+    el.innerHTML = filterBar(sel, rangeLabel) + `
       <div class="card" style="margin-bottom:16px"><h2>Update Meta data</h2>
         <p class="mut" style="margin:0 0 10px">Export from Ads Manager with the breakdown set to <b>Day</b> and these columns: <b>Campaign name, Amount spent, Impressions, Link clicks, Reach, Purchases, Purchases conversion value</b>. Re-importing a day updates it.</p>
         <div class="form" style="margin:0"><input type="file" id="mcsv" accept=".csv,text/csv,.txt"><span id="mmsg" class="mut"></span></div></div>
@@ -376,16 +422,29 @@ const views = {
       <div class="card"><h2>By campaign</h2><div class="scroll">${d.campaigns.length ? `<table><thead><tr><th>Campaign</th><th class="r">Spend</th><th class="r">GST ${d.gst}%</th><th class="r">Total cost</th><th class="r">Impr.</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">CPM</th><th class="r">Purchases</th><th class="r">Cost / purchase</th><th class="r">ROAS</th></tr></thead><tbody>${d.campaigns.map(c => { const m = calc(c); return `
         <tr><td>${esc(c.campaign)}</td><td class="r">${rs(c.spend)}</td><td class="r mut">${rs(c.gst_amount, 2)}</td><td class="r">${rs(c.total_cost)}</td><td class="r">${f(c.impressions)}</td><td class="r">${m.ctr === null ? '–' : f(m.ctr, 2) + '%'}</td><td class="r">${rs(m.cpc, 2)}</td><td class="r">${rs(m.cpm, 2)}</td><td class="r">${f(c.purchases)}</td><td class="r">${rs(m.cpp, 2)}</td><td class="r"><b>${m.roas === null ? '–' : f(m.roas, 2) + 'x'}</b></td></tr>`; }).join('')}
         <tr style="font-weight:600"><td>Total</td><td class="r">${rs(t.spend)}</td><td class="r">${rs(t.gst_amount, 2)}</td><td class="r">${rs(t.total_cost)}</td><td class="r">${f(t.impressions)}</td><td class="r">${T.ctr === null ? '–' : f(T.ctr, 2) + '%'}</td><td class="r">${rs(T.cpc, 2)}</td><td class="r">${rs(T.cpm, 2)}</td><td class="r">${f(t.purchases)}</td><td class="r">${rs(T.cpp, 2)}</td><td class="r">${T.roas === null ? '–' : f(T.roas, 2) + 'x'}</td></tr></tbody></table>` : '<div class="empty">No Meta data in this range.</div>'}</div></div>`;
-    el.querySelectorAll('.seg button').forEach(b => b.onclick = () => { metaSel = { p: b.dataset.p, date: '' }; render(); });
-    $('#mday').onchange = e => { if (e.target.value) { metaSel = { p: 'day', date: e.target.value }; render(); } };
+    bindFilterBar(el, s => { metaSel = s; render(); });
     $('#mcsv').onchange = e => { const file = e.target.files[0]; if (file) importCsvFile(file, $('#mmsg'), render); };
   },
 
   async bank(el) {
-    const rows = await api('/bank?days=' + days());
+    const [rows, fund, sup] = await Promise.all([api('/bank?' + filterQuery(bankSel)), api('/meta-funds'), api('/supplier-wallet')]);
+    const supplierBox = `<div class="card" style="margin-bottom:16px"><h2>Supplier wallet</h2>
+      <div class="kpis" style="margin-bottom:10px"><div class="kpi ${sup.balance > 0 ? 'good' : ''}"><div class="k">Wallet balance</div><div class="v">${inr(sup.balance)}</div>
+        <div class="n">${sup.entries} recharge${sup.entries === 1 ? '' : 's'}${sup.last ? ', last on ' + sup.last : ''}</div></div></div>
+      <p class="mut" style="font-size:12px;margin:0">Adds up your <b>Money out</b> entries with category <b>Supplier</b>. Charges and payouts on orders are not taken off yet.</p></div>`;
+    const lowDays = fund.daysLeft !== null && fund.daysLeft < 2;
+    const fundTile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+    const fundBox = `<div class="card" style="margin-bottom:16px"><h2>Meta ad funds (prepaid, all time)</h2>
+      <div class="kpis" style="margin-bottom:10px">
+        ${fundTile('Recharged from bank', inr(fund.recharged), `${fund.recharges} recharge${fund.recharges === 1 ? '' : 's'}${fund.lastRecharge ? ', last on ' + fund.lastRecharge : ''}${fund.opening ? ' · plus ' + inr(fund.opening) + ' opening balance' : ''}`)}
+        ${fundTile('Used by Meta, incl. GST', inr(fund.used), `Spend from your Meta data plus ${fund.gst}% GST`)}
+        ${fundTile('Balance left', inr(fund.balance), fund.perDay > 0 ? `About ${fund.daysLeft.toFixed(1)} days at ${inr(fund.perDay)} a day` : 'No spend in the last 7 days', fund.balance < 0 || lowDays ? 'bad' : fund.balance > 0 ? 'good' : '')}
+        ${fundTile('Check', fund.balance < 0 ? 'Recharge missing?' : 'Compare', 'Balance left should match "available after your next balance payment" in Meta billing (Funds minus Outstanding balance). A gap means a recharge not entered here, or spend not imported yet.')}
+      </div>
+      <p class="mut" style="font-size:12px;margin:0">Enter each recharge below as <b>Money out</b> with category <b>Ads</b>. Do not enter Meta's daily deductions: they come from the spend data. Money already in your Meta account before you started: set it in <a href="#settings">Settings</a>.</p></div>`;
     const cats = ['COD remittance', 'Gateway payout', 'Owner capital', 'Refund received', 'Ads', 'Supplier', 'Courier', 'Tools', 'Salary', 'Withdrawal', 'Other'];
     const inn = rows.filter(r => r.type === 'in').reduce((a, r) => a + r.amount, 0), out = rows.filter(r => r.type === 'out').reduce((a, r) => a + r.amount, 0);
-    el.innerHTML = `<div class="card"><h2>Add bank entry</h2><form class="form" id="bform">
+    el.innerHTML = fundBox + supplierBox + filterBar(bankSel, filterLabel(bankSel)) + `<div class="card"><h2>Add bank entry</h2><form class="form" id="bform">
       <label>Date<input type="date" id="b-day" value="${today()}"></label>
       <label>Type<select id="b-type"><option value="in">Money in</option><option value="out">Money out</option></select></label>
       <label>Amount (₹)<input id="b-amt" type="number" min="1" step="any" required></label>
@@ -401,6 +460,7 @@ const views = {
       render();
     };
     el.querySelectorAll('button[data-id]').forEach(b => b.onclick = async () => { await api('/bank/' + b.dataset.id, { method: 'DELETE' }); render(); });
+    bindFilterBar(el, s => { bankSel = s; render(); });
   },
 
   async settings(el) {
@@ -419,7 +479,7 @@ const views = {
         ${F('default_cost', 'Default supplier cost (₹)')}${F('gst', 'GST rate (%)')}${F('price_incl_gst', 'Price includes GST (1 = yes, 0 = no)', '1')}
         ${F('ship', 'Forward courier (₹)')}${F('return_ship', 'Return courier (₹)')}${F('pack', 'Packaging (₹)')}
         ${F('cod_fee', 'COD fee (₹)')}${F('gateway_pct', 'Gateway fee, prepaid (%)')}${F('platform_pct', 'Platform fee (%)')}
-        ${F('ad_gst', 'GST on ad spend (%)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}
+        ${F('ad_gst', 'GST on ad spend (%)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}${F('meta_opening_balance', 'Meta ad balance before tracking (₹)')}
       </div><div class="form" style="margin:14px 0 0"><button class="primary" id="save">Save</button><span class="mut" id="saved"></span></div></div>
       <div class="card"><h2>Supplier cost per product</h2>${prods.length ? `<div class="scroll"><table><thead><tr><th>Product</th><th class="r">Orders</th><th class="r">Cost per unit (₹)</th></tr></thead><tbody>${prods.map(p =>
         `<tr><td>${esc(p.title)}</td><td class="r">${p.orders}</td><td class="r"><input data-p="${esc(p.title)}" type="number" step="any" style="width:100px" placeholder="${s.default_cost}" value="${p.cost ?? ''}"></td></tr>`).join('')}</tbody></table></div>
@@ -442,7 +502,7 @@ async function render() {
   status = await api('/status');
   const l = status.syncs.map(s => s.at).sort().pop();
   $('#syncnote').textContent = l ? 'Last sync ' + new Date(l).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
-  $('#range').style.display = ['overview', 'orders', 'ads', 'bank'].includes(tab) ? '' : 'none';
+  $('#range').style.display = ['ads'].includes(tab) ? '' : 'none';
   await (views[tab] || views.overview)($('#view'));
 }
 $('#range').onchange = render;

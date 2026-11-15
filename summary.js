@@ -27,10 +27,12 @@ export function orderEconomics(o, s, costs) {
   return { profit: deliveredProfit, revenue: net, state: 'expected' };
 }
 
-export function listOrders({ days = 30, status = '', q = '' } = {}) {
+export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '', to: toOpt = '' } = {}) {
   const s = getSettings(), costs = costMap();
-  const from = days > 0 ? daysAgo(days - 1) : '0000-00-00';
-  let rows = db.prepare('SELECT * FROM orders WHERE day >= ? ORDER BY created_at DESC').all(from);
+  const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
+  const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : '0000-00-00';
+  const to = valid(toOpt) ? toOpt : '9999-12-31';
+  let rows = db.prepare('SELECT * FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC').all(from, to);
   if (status) rows = rows.filter(o => o.status === status);
   if (q) { const t = q.toLowerCase(); rows = rows.filter(o => `${o.name} ${o.customer || ''} ${o.city} ${o.product}`.toLowerCase().includes(t)); }
   return rows.map(o => ({ ...o, ...orderEconomics(o, s, costs) }));
@@ -40,8 +42,12 @@ export function listOrders({ days = 30, status = '', q = '' } = {}) {
 export function summary(days = 30, fromOpt = '', toOpt = '') {
   const s = getSettings(), costs = costMap();
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
-  const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : (db.prepare('SELECT MIN(day) d FROM orders').get().d || todayIST());
+  // The first day with any order or ad spend. A "last 30 days" view never starts before this,
+  // so days before the store existed are not counted (matters for fixed costs and the chart).
+  const firstData = db.prepare(`SELECT MIN(d) d FROM (SELECT MIN(day) d FROM orders UNION ALL SELECT MIN(day) d FROM ad_spend)`).get().d || todayIST();
+  let from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : firstData;
   const to = valid(toOpt) ? toOpt : todayIST();
+  if (from < firstData && firstData <= to) from = firstData;   // not before the store had any data (a day picked earlier than that stays as picked)
   const span = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1);
 
   const orders = db.prepare('SELECT * FROM orders WHERE day >= ? AND day <= ?').all(from, to);
@@ -52,6 +58,8 @@ export function summary(days = 30, fromOpt = '', toOpt = '') {
   const daily = {};
   const day = d => (daily[d] ||= { day: d, orders: 0, revenue: 0, gross: 0, ads: 0, adGst: 0 });
   let revenue = 0, gross = 0, expected = 0, sales = 0, codOrders = 0;
+  let salesIfDelivered = 0, salesDelivered = 0, rtoValue = 0;   // product sales (order totals) under the two views
+  const statusValue = {}, byPayment = { cod: 0, prepaid: 0 }, byProduct = {};   // breakdowns of ALL orders, cancelled included
 
   for (const o of orders) {
     counts[o.status] = (counts[o.status] || 0) + 1;
@@ -59,6 +67,13 @@ export function summary(days = 30, fromOpt = '', toOpt = '') {
     const d = day(o.day);
     d.orders++;
     if (o.status !== 'cancelled') { sales += o.total; if (o.payment === 'cod') codOrders++; }
+    statusValue[o.status] = (statusValue[o.status] || 0) + o.total;
+    byPayment[o.payment] = (byPayment[o.payment] || 0) + 1;
+    const bp = (byProduct[o.product] ||= { product: o.product, orders: 0, value: 0 });
+    bp.orders++; bp.value += o.total;
+    if (o.status === 'delivered') salesDelivered += o.total;
+    if (o.status === 'rto') rtoValue += o.total;
+    if (o.status !== 'cancelled' && o.status !== 'rto') salesIfDelivered += o.total;   // Placed + Shipped + Delivered
     if (e.state === 'realised') { revenue += e.revenue; gross += e.profit; d.revenue += e.revenue; d.gross += e.profit; }
     else if (e.state === 'expected') expected += e.profit;
   }
@@ -89,12 +104,16 @@ export function summary(days = 30, fromOpt = '', toOpt = '') {
       codShare: placed ? codOrders / placed * 100 : 0,
       revenue, gross, adSpend, adGst, fixed, net,
       expectedPending: expected,
+      salesIfDelivered, salesDelivered, rtoValue,
+      netIfDelivered: net + expected,    // net profit if every Placed and Shipped order ends up delivered
+      settled,
       roas: adSpend ? sales / adSpend : 0,
       cpa: placed ? adSpend / placed : 0,
       profitPerOrder: placed ? net / placed : 0,
       bankBalance: s.opening_balance + all, bankIn: bIn, bankOut: bOut
     },
-    counts,
+    counts, statusValue, byPayment,
+    byProduct: Object.values(byProduct).sort((a, b) => b.orders - a.orders),
     daily: Object.values(daily).sort((a, b) => a.day.localeCompare(b.day)),
     bankByCategory: bank
   };
