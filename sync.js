@@ -79,11 +79,15 @@ export const connections = () => ({
 function mapOrder(o) {
   const gateways = (o.payment_gateway_names || []).join(' ').toLowerCase();
   const tags = (o.tags || '').toLowerCase();
+  // Dropship India fulfils orders through Shopify's fulfilment service: when it dispatches an order it adds a
+  // fulfilment with the courier and tracking number. Packed and confirmed stages are not sent to Shopify.
+  const ful = (o.fulfillments || []).filter(f => f.status === 'success').sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
   let status = 'new';
   if (o.cancelled_at) status = 'cancelled';
   else if (/\brto\b/.test(tags)) status = 'rto';
   else if (/\bdelivered\b/.test(tags)) status = 'delivered';
-  else if (o.fulfillment_status === 'fulfilled') status = 'shipped';
+  else if (ful?.shipment_status === 'delivered') status = 'delivered';
+  else if (o.fulfillment_status === 'fulfilled' || o.fulfillment_status === 'partial' || ful) status = 'shipped';
   const items = o.line_items || [];
   return {
     id: 'shopify:' + o.id,
@@ -91,6 +95,11 @@ function mapOrder(o) {
     created_at: o.created_at,
     day: istDay(o.created_at),
     city: o.shipping_address?.city || '',
+    fulfilled_at: ful?.created_at || '',
+    courier: ful?.tracking_company || '',
+    tracking_no: ful?.tracking_number || (ful?.tracking_numbers || [])[0] || '',
+    tracking_url: ful?.tracking_url || (ful?.tracking_urls || [])[0] || '',
+    ship_status: ful?.shipment_status || '',
     phone: o.shipping_address?.phone || o.phone || o.customer?.phone || o.billing_address?.phone || '',
     email: o.email || o.customer?.email || '',
     address: [o.shipping_address?.address1, o.shipping_address?.address2].filter(Boolean).join(', '),
@@ -114,9 +123,10 @@ export async function syncShopify() {
   const since = new Date(Date.now() - 90 * 864e5).toISOString();
   let url = `https://${store}/admin/api/2024-10/orders.json?status=any&limit=250&created_at_min=${encodeURIComponent(since)}`;
   const up = db.prepare(`
-    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer,zip,province,phone,email,address,ip,discount)
-    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?,?,?,?,?,?,?,?)
+    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer,zip,province,phone,email,address,ip,discount,fulfilled_at,courier,tracking_no,tracking_url,ship_status)
+    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
+      fulfilled_at=excluded.fulfilled_at, courier=excluded.courier, tracking_no=excluded.tracking_no, tracking_url=excluded.tracking_url, ship_status=excluded.ship_status,
       zip=COALESCE(NULLIF(excluded.zip,''), orders.zip), province=COALESCE(NULLIF(excluded.province,''), orders.province),
       phone=COALESCE(NULLIF(excluded.phone,''), orders.phone), email=COALESCE(NULLIF(excluded.email,''), orders.email),
       address=COALESCE(NULLIF(excluded.address,''), orders.address), ip=COALESCE(NULLIF(excluded.ip,''), orders.ip),
@@ -131,7 +141,7 @@ export async function syncShopify() {
     const { orders } = await res.json();
     for (const raw of orders) {
       const o = mapOrder(raw);
-      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer, o.zip, o.province, o.phone, o.email, o.address, o.ip, o.discount);
+      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer, o.zip, o.province, o.phone, o.email, o.address, o.ip, o.discount, o.fulfilled_at, o.courier, o.tracking_no, o.tracking_url, o.ship_status);
       n++;
     }
     const next = (res.headers.get('link') || '').match(/<([^>]+)>;\s*rel="next"/);

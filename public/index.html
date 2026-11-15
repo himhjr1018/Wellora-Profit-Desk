@@ -7,101 +7,226 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
 <style>
+/* Premium dashboard look: deep ink background with soft colour glows, layered cards with a light top edge,
+   Plus Jakarta Sans for headings and Inter for numbers and text. Sidebar on desktop, scrolling tab bar on phones. */
 :root{
-  --bg:#f5f6f8; --surface:#fff; --fg:#14182b; --muted:#5d6479; --line:#dfe2ea; --field:#f5f6f8;
-  --accent:#2d3a8c; --accent-fg:#fff; --good:#12805c; --good-bg:#e2f4ec; --bad:#c2352b; --bad-bg:#fbe9e7; --warn:#b4690e; --warn-bg:#fdf0dc;
-  --bar:#aab1c8; --display:'Space Grotesk',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  --bg:#f1f3fa; --glow1:rgba(99,102,241,.10); --glow2:rgba(16,185,129,.07);
+  --surface:#ffffff; --surface-2:#f6f7fc; --fg:#0f1530; --muted:#69728f; --line:#e5e8f2; --line-strong:#d3d9ea; --field:#f4f5fb;
+  --accent:#4357e2; --accent-2:#6a5cf0; --accent-soft:#eaedff; --accent-fg:#ffffff;
+  --good:#0b8a5d; --good-bg:#e4f6ee; --bad:#d03a30; --bad-bg:#fdecea; --warn:#a35f00; --warn-bg:#fff2d9;
+  --bar:#bcc4df;
+  --shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(15,21,48,.05),0 14px 34px -16px rgba(15,21,48,.14);
+  --display:'Plus Jakarta Sans','Inter',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0f1220; --surface:#171b2e; --fg:#e8eaf4; --muted:#9aa2bd; --line:#2a3050; --field:#0f1220;
-  --accent:#8e9cff; --accent-fg:#0f1220; --good:#4cd3a0; --good-bg:#12332b; --bad:#ff8277; --bad-bg:#3a1b1a; --warn:#f0a95a; --warn-bg:#3a2c14;
-  --bar:#4a5379; color-scheme:dark}}
+  --bg:#070a15; --glow1:rgba(99,102,241,.20); --glow2:rgba(16,185,129,.08);
+  --surface:#10152e; --surface-2:#0c1026; --fg:#eceffb; --muted:#97a0c3; --line:#1e2644; --line-strong:#2b355d; --field:#0a0e22;
+  --accent:#8c9cff; --accent-2:#a592ff; --accent-soft:#1a2147; --accent-fg:#070a15;
+  --good:#4ad8a3; --good-bg:#0d2c26; --bad:#ff8a7e; --bad-bg:#331619; --warn:#f4b061; --warn-bg:#32260f;
+  --bar:#46517f;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 16px 40px -18px rgba(0,0,0,.7);
+  color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--body)}
-.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 56px}
-.top{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
-h1{font:700 24px var(--display);margin:0;letter-spacing:-.01em}
-.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.sync-note{font-size:12px;color:var(--muted)}
-nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
-nav a{padding:9px 14px;color:var(--muted);text-decoration:none;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
-nav a.on{color:var(--fg);border-color:var(--accent)}
+html{-webkit-text-size-adjust:100%;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+::selection{background:var(--accent);color:var(--accent-fg)}
+body{margin:0;color:var(--fg);font:14px/1.55 var(--body);letter-spacing:-.006em;-webkit-font-smoothing:antialiased;
+  background-color:var(--bg);
+  background-image:radial-gradient(900px 520px at 6% -8%,var(--glow1),transparent 62%),radial-gradient(760px 480px at 100% 0%,var(--glow2),transparent 58%);
+  background-attachment:fixed}
+a{color:var(--accent)}
+
+/* shell */
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-right:1px solid var(--line);padding:22px 14px 18px;display:flex;flex-direction:column;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:12px;padding:0 10px 20px}
+.brand img{width:36px;height:36px;border-radius:11px;flex:none;box-shadow:0 6px 18px -6px color-mix(in srgb,var(--accent) 70%,transparent),0 0 0 1px color-mix(in srgb,var(--accent) 25%,transparent)}
+.brand b{display:block;font:800 16px/1.1 var(--display);letter-spacing:-.025em}
+.brand span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+nav .grp{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);opacity:.85;padding:20px 12px 7px}
+nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:11px;color:var(--muted);text-decoration:none;font-weight:500;font-size:14px;transition:background .15s,color .15s}
+nav a svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav a:hover{background:color-mix(in srgb,var(--fg) 5%,transparent);color:var(--fg)}
+nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 20%,transparent)}
+.side-foot{margin-top:auto;padding:18px 6px 0}
+.chips{display:grid;gap:8px;margin-bottom:14px}
+.chip{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);font-size:12.5px;font-weight:500}
+.chip small{margin-left:auto;color:var(--muted);font-size:11.5px;font-weight:500}
+.foot-note{font-size:11.5px;color:var(--muted);padding:0 4px}
+.main{padding:34px 40px 80px;max-width:1360px;width:100%;min-width:0}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px 24px;flex-wrap:wrap;margin-bottom:28px}
+.page-head h1{font:800 30px/1.1 var(--display);letter-spacing:-.035em;margin:0}
+.page-head p{margin:7px 0 0;color:var(--muted);font-size:14.5px}
+.ctrl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sync-note{font-size:12.5px;color:var(--muted)}
+#view.in{animation:rise .32s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#view.in{animation:none}*{transition:none!important}}
+
+/* controls */
 button,select,input{font:inherit;color:var(--fg)}
-button,select{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 12px;cursor:pointer}
-button:hover{border-color:var(--accent)}
-button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-button.link{border:0;background:none;color:var(--bad);padding:2px 6px}
-input{background:var(--field);border:1px solid var(--line);border-radius:7px;padding:7px 10px;min-width:0}
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
-.card h2{font:700 12px var(--display);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
-.kpi .k{font-size:12px;color:var(--muted)}
-.kpi .v{font:700 22px var(--display);margin-top:3px;font-variant-numeric:tabular-nums}
-.kpi .n{font-size:12px;color:var(--muted);margin-top:2px}
-.kpi.hero,.kpi.wide{grid-column:span 2}
-.kpi.wide .v{font-size:26px}
-.kpi.hero .v{font-size:32px}
-.kpi.good{background:var(--good-bg);border-color:transparent}.kpi.good .v{color:var(--good)}
-.kpi.bad{background:var(--bad-bg);border-color:transparent}.kpi.bad .v{color:var(--bad)}
-.two{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;margin-bottom:16px}
-.three{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.scroll{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th{font:600 11px var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+button,select{background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:0 14px;height:37px;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s,transform .05s}
+button:hover,select:hover{border-color:var(--accent)}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.6;cursor:default}
+button.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));color:var(--accent-fg);border-color:color-mix(in srgb,var(--accent) 80%,#000);font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 16px -8px var(--accent)}
+button.primary:hover{filter:brightness(1.07)}
+button.link{border:0;background:none;color:var(--bad);height:auto;padding:2px 6px;box-shadow:none}
+input{background:var(--field);border:1px solid var(--line-strong);border-radius:10px;padding:0 12px;height:37px;min-width:0;transition:border-color .15s,box-shadow .15s}
+input[type=file]{height:auto;padding:6px 8px;color:var(--muted)}
+input[type=file]::file-selector-button{background:var(--surface);color:var(--fg);border:1px solid var(--line-strong);border-radius:8px;padding:6px 12px;margin-right:10px;font:inherit;font-weight:500;cursor:pointer}
+input[type=file]::file-selector-button:hover{border-color:var(--accent)}
+input[type=checkbox]{height:auto}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+td select{height:30px;padding:0 8px;font-size:13px;border-radius:8px}
+
+/* date filter bar */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-bottom:26px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.seg button{border:0;border-radius:9px;background:transparent;height:31px;padding:0 13px;color:var(--muted);font-weight:500}
+.seg button:hover{color:var(--fg);border-color:transparent}
+.seg button.on{background:var(--accent);color:var(--accent-fg);font-weight:600;box-shadow:0 4px 12px -6px var(--accent)}
+.range-pick{display:inline-flex;gap:12px;flex-wrap:wrap;align-items:center}
+.range-pick label{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.range-pick input{height:35px}
+.showing{margin-left:auto;color:var(--muted);font-size:13px}
+
+/* cards and tiles */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;min-width:0;box-shadow:var(--shadow)}
+.card h2{font:700 15.5px/1.3 var(--display);letter-spacing:-.02em;color:var(--fg);margin:0 0 16px}
+.card{overflow-x:auto}
+.card > table th,.card > table td{padding:10px 12px}
+.card + .card,.card + .toolbar,.toolbar + .card{margin-top:22px}
+.sect{display:flex;align-items:center;gap:12px;font:700 11.5px var(--display);text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:34px 0 14px}
+.sect::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.sect:first-child{margin-top:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:0}
+.kpis.k2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpi{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow);min-width:0;overflow:hidden}
+.kpi .k{font-size:13px;color:var(--muted);font-weight:500}
+.kpi .v{font:700 28px/1.1 var(--body);margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.04em;overflow-wrap:anywhere}
+.kpi .v .cur{font-weight:500;font-size:.68em;opacity:.55;margin-right:2px;vertical-align:.18em;letter-spacing:0}
+.kpi .n{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.55}
+.kpi.big .v{font-size:42px}
+.kpi.mid .v{font-size:34px}
+.kpi.good{background:linear-gradient(140deg,var(--good-bg),var(--surface) 78%);border-color:color-mix(in srgb,var(--good) 30%,var(--line))}.kpi.good .v{color:var(--good)}
+.kpi.bad{background:linear-gradient(140deg,var(--bad-bg),var(--surface) 78%);border-color:color-mix(in srgb,var(--bad) 30%,var(--line))}.kpi.bad .v{color:var(--bad)}
+.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.mini span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.mini b{font:700 18px/1.2 var(--body);letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.mini em{font-style:normal;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:4px}
+.spark{display:block;width:calc(100% + 44px);height:42px;margin:14px -22px -20px}
+.card .kpis{gap:14px}
+.card .kpi{box-shadow:none;background:var(--surface-2)}
+.card .kpi.good{background:var(--good-bg)}.card .kpi.bad{background:var(--bad-bg)}
+.two{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px}
+.three{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+
+/* tables */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:13px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+th{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+td{padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 td.r,th.r{text-align:right}
+.card > table{border:1px solid var(--line);border-radius:13px;overflow:hidden}
 .pos{color:var(--good)}.neg{color:var(--bad)}.mut{color:var(--muted)}
-.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:500;background:var(--field);border:1px solid var(--line)}
+
+/* labels, forms, notices */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px 2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--field);border:1px solid var(--line);line-height:1.55}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
 .pill.delivered{background:var(--good-bg);color:var(--good);border-color:transparent}
 .pill.rto{background:var(--bad-bg);color:var(--bad);border-color:transparent}
 .pill.risk-high{background:var(--bad-bg);color:var(--bad);border-color:transparent}
 .pill.risk-medium{background:var(--warn-bg);color:var(--warn);border-color:transparent}
 .pill.risk-low{color:var(--muted)}
 .pill.shipped,.pill.new{background:var(--warn-bg);color:var(--warn);border-color:transparent}
-.form{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
-.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
-.form input,.form select{min-width:110px}
-.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
-.empty{padding:28px;text-align:center;color:var(--muted)}
-.banner{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-.conn{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--bar)}.dot.ok{background:var(--good)}.dot.err{background:var(--bad)}
-.range-pick{display:inline-flex;gap:10px;flex-wrap:wrap;align-items:center}
-.range-pick label{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
-.seg button{border:0;border-radius:0;background:var(--surface);padding:7px 12px;border-right:1px solid var(--line)}
-.seg button:last-child{border-right:0}
-.seg button.on{background:var(--accent);color:var(--accent-fg)}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-iframe{width:100%;height:1100px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
-@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.three{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:480px){.kpis{grid-template-columns:minmax(0,1fr)}.kpi.hero,.kpi.wide{grid-column:auto}.fields{grid-template-columns:minmax(0,1fr)}}
+.pill.cancelled{color:var(--muted)}
+.pill.st-awaiting{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.st-transit{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.pill.st-delivered{background:var(--good-bg);color:var(--good);border-color:transparent}
+.pill.st-rto{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.pill.st-cancelled{color:var(--muted)}
+.pipe{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--field);gap:2px}
+.pipe i{display:block;min-width:3px}
+.pipekey{display:flex;gap:8px 22px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+.pipekey b{color:var(--fg);font-weight:600;margin-left:4px}
+.pipekey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+a.trk{color:var(--accent);text-decoration:none;font-weight:500}
+a.trk:hover{text-decoration:underline}
+.form{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+.form label,.fields label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.form input,.form select{min-width:120px}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:13px;padding:13px 18px;margin-bottom:22px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.conn{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bar);flex:none}.dot.ok{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}.dot.err{background:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 22%,transparent)}
+.legend{display:flex;gap:18px;font-size:12.5px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+iframe{display:block;width:100%;height:calc(100vh - 160px);min-height:800px;border:1px solid var(--line);border-radius:16px;background:transparent}
+code{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12.5px}
+
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.three{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:sticky;top:0;z-index:20;height:auto;flex-direction:row;align-items:center;gap:6px;padding:10px 12px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
+  .brand{padding:0 8px 0 2px}.brand span{display:none}
+  nav{display:flex;gap:2px}nav .grp{display:none}nav a{padding:8px 11px;white-space:nowrap}
+  .side-foot{display:none}
+  .main{padding:22px 16px 60px}
+  .page-head h1{font-size:26px}
+  .showing{margin-left:0;width:100%}
+}
+@media (max-width:640px){.kpis,.kpis.k2{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:minmax(0,1fr)}.kpi.big .v{font-size:36px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="top">
-    <h1>Wellora Profit Desk</h1>
-    <div class="ctrl">
-      <span class="sync-note" id="syncnote"></span>
-      <select id="range" aria-label="Date range">
-        <option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
-        <option value="90">Last 90 days</option><option value="0">All time</option>
-      </select>
-      <button class="primary" id="syncbtn">Sync now</button>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><img src="/favicon.svg" alt=""><div><b>Profit Desk</b><span>Wellora</span></div></div>
+    <nav id="tabs" aria-label="Main">
+      <a href="#overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9zm0 7h6v-4H4v4zm10 0h6v-9h-6v9zm0-16v4h6V4h-6z"/></svg>Overview</a>
+      <div class="grp">Sales</div>
+      <a href="#orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 13H5L6 7z"/><path d="M9 7a3 3 0 016 0"/></svg>Orders</a>
+      <a href="#tracking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg>Live tracking</a>
+      <a href="#risk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>Risk check</a>
+      <div class="grp">Marketing</div>
+      <a href="#ads"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l7 4V6L7 10H4z"/><path d="M17.5 9a4 4 0 010 6"/></svg>Ad spend</a>
+      <a href="#meta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Meta Ads</a>
+      <div class="grp">Money</div>
+      <a href="#bank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bank</a>
+      <div class="grp">Tools</div>
+      <a href="#calculator"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg>Calculator</a>
+      <a href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</a>
+    </nav>
+    <div class="side-foot">
+      <div class="chips">
+        <div class="chip"><i class="dot" id="dot-shopify"></i>Shopify<small id="st-shopify"></small></div>
+        <div class="chip"><i class="dot" id="dot-meta"></i>Meta Ads<small id="st-meta"></small></div>
+      </div>
+      <div class="foot-note">Your data stays on this Mac.</div>
     </div>
-  </div>
-  <nav id="tabs">
-    <a href="#overview">Overview</a><a href="#orders">Orders</a><a href="#risk">Risk</a><a href="#ads">Ad spend</a><a href="#meta">Meta Ads</a>
-    <a href="#bank">Bank</a><a href="#settings">Settings</a><a href="#calculator">Calculator</a>
-  </nav>
-  <div id="view"></div>
+  </aside>
+  <main class="main">
+    <header class="page-head">
+      <div><h1 id="ptitle">Overview</h1><p id="psub"></p></div>
+      <div class="ctrl">
+        <span class="sync-note" id="syncnote"></span>
+        <select id="range" aria-label="Date range">
+          <option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option><option value="0">All time</option>
+        </select>
+        <button class="primary" id="syncbtn">Sync now</button>
+      </div>
+    </header>
+    <div id="view"></div>
+  </main>
 </div>
 
 <script>
@@ -122,7 +247,9 @@ let ordSel = { p: '30' };    // Orders tab date filter
 let bankSel = { p: '30' };   // Bank tab date filter
 let riskSel = { p: '30' };   // Risk tab date filter
 let riskFilter = { level: 'medium', confirm: '', q: '' };   // Risk tab: shows Medium and High risk by default
-let ordFilter = { status: '', q: '' }; // Orders tab status and search, kept when the date filter changes
+let trkSel = { p: '30' };      // Live tracking date filter
+let trkFilter = { stage: '', q: '' };   // Live tracking stage chip and search
+let ordFilter = { q: '' };   // Orders tab search text, kept when the date filter changes // Orders tab status and search, kept when the date filter changes
 
 // Date filter used by the Overview: presets plus a single-day picker
 // "Today" is the Indian date, because order and ad days are stored in IST
@@ -133,12 +260,12 @@ const filterQuery = sel => ({ today: `from=${isoDay(0)}&to=${isoDay(0)}`, yester
   range: `from=${sel.from}&to=${sel.to}` }[sel.p] || 'days=30');
 const filterLabel = sel => ({ today: isoDay(0), yesterday: isoDay(1), 7: `${isoDay(6)} to ${isoDay(0)}`, 30: `${isoDay(29)} to ${isoDay(0)}`,
   90: `${isoDay(89)} to ${isoDay(0)}`, all: 'All time', range: sel.from === sel.to ? sel.from : `${sel.from} to ${sel.to}` }[sel.p] || '');
-const filterBar = (sel, label) => `<div class="card" style="margin-bottom:16px"><div class="form" style="margin:0;align-items:center">
+const filterBar = (sel, label) => `<div class="toolbar">
   <div class="seg" role="group" aria-label="Date range">${FILTERS.map(([k, l]) => `<button type="button" data-p="${k}" class="${sel.p === k ? 'on' : ''}">${l}</button>`).join('')}</div>
   <span class="range-pick" title="Choose a start date, then an end date. One date alone shows just that day.">
     <label>From<input type="date" class="rfrom" value="${sel.p === 'range' ? sel.from : ''}" max="${isoDay(0)}"></label>
     <label>To<input type="date" class="rto" value="${sel.p === 'range' ? sel.to : ''}" max="${isoDay(0)}"></label></span>
-  <span class="mut">Showing ${label}</span></div></div>`;
+  <span class="showing">Showing ${label}</span></div>`;
 const bindFilterBar = (el, apply) => {
   el.querySelectorAll('.seg button').forEach(b => b.onclick = () => apply({ p: b.dataset.p }));
   const f = el.querySelector('.rfrom'), t = el.querySelector('.rto');
@@ -158,7 +285,7 @@ let status = null;
 
 /* ---------- chart ---------- */
 function chart(daily) {
-  const W = 760, H = 230, L = 52, R = 10, T = 10, B = 26;
+  const W = 760, H = 330, L = 54, R = 12, T = 12, B = 28;
   const net = daily.map(d => d.gross - d.ads - d.adGst);
   const vals = [...daily.map(d => d.gross), ...daily.map(d => d.ads), ...net, 0];
   let max = Math.max(...vals), min = Math.min(...vals);
@@ -166,22 +293,41 @@ function chart(daily) {
   const pad = (max - min) * .08; max += pad; if (min < 0) min -= pad;
   const x = i => L + (i + .5) * (W - L - R) / daily.length;
   const y = v => T + (max - v) / (max - min) * (H - T - B);
-  const bw = Math.max(2, (W - L - R) / daily.length * .34);
-  const ticks = 4;
-  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Daily gross profit, ad spend and net profit">`;
-  for (let i = 0; i <= ticks; i++) {
-    const v = min + (max - min) * i / ticks;
-    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)">${inr(v / 1000 >= 1 || v / 1000 <= -1 ? Math.round(v / 1000) * 1000 : Math.round(v)).replace(/,000$/, 'k')}</text>`;
+  const bw = Math.max(2, Math.min(14, (W - L - R) / daily.length * .32));
+  const k = v => { const a = Math.abs(v); const t = a >= 1000 ? Math.round(a / 100) / 10 + 'k' : String(Math.round(a)); return (v < 0 ? '-' : '') + '₹' + t.replace('.0k', 'k'); };
+  const id = 'c' + Math.random().toString(36).slice(2, 7);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Daily gross profit, ad spend and net profit"><defs>
+    <linearGradient id="${id}a" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent)" stop-opacity=".55"/></linearGradient>
+    <linearGradient id="${id}n" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--good)" stop-opacity=".22"/><stop offset="1" stop-color="var(--good)" stop-opacity="0"/></linearGradient></defs>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = min + (max - min) * i / 4;
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="3 5"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" fill="var(--muted)">${k(v)}</text>`;
   }
-  s += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1"/>`;
+  s += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line-strong)"/>`;
   daily.forEach((d, i) => {
-    s += `<rect x="${x(i) - bw - 1}" y="${Math.min(y(d.gross), y(0))}" width="${bw}" height="${Math.abs(y(d.gross) - y(0))}" fill="var(--accent)" rx="1"><title>${d.day} gross profit ${inr(d.gross)}</title></rect>`;
-    s += `<rect x="${x(i) + 1}" y="${y(d.ads)}" width="${bw}" height="${Math.abs(y(0) - y(d.ads))}" fill="var(--bar)" rx="1"><title>${d.day} ad spend ${inr(d.ads)}</title></rect>`;
+    const gh = Math.abs(y(d.gross) - y(0)), ah = Math.abs(y(0) - y(d.ads));
+    if (gh > .5) s += `<rect x="${x(i) - bw - 1.5}" y="${Math.min(y(d.gross), y(0))}" width="${bw}" height="${gh}" fill="url(#${id}a)" rx="${Math.min(4, bw / 2)}"><title>${d.day} gross profit ${inr(d.gross)}</title></rect>`;
+    if (ah > .5) s += `<rect x="${x(i) + 1.5}" y="${y(d.ads)}" width="${bw}" height="${ah}" fill="var(--bar)" rx="${Math.min(4, bw / 2)}"><title>${d.day} ad spend ${inr(d.ads)}</title></rect>`;
   });
-  s += `<polyline fill="none" stroke="var(--good)" stroke-width="2" points="${net.map((v, i) => `${x(i)},${y(v)}`).join(' ')}"/>`;
+  const pts = net.map((v, i) => `${x(i)},${y(v)}`);
+  if (pts.length > 1) {
+    s += `<polygon fill="url(#${id}n)" points="${x(0)},${y(0)} ${pts.join(' ')} ${x(net.length - 1)},${y(0)}"/>`;
+    s += `<polyline fill="none" stroke="var(--good)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${pts.join(' ')}"/>`;
+  }
+  if (net.length) s += `<circle cx="${x(net.length - 1)}" cy="${y(net[net.length - 1])}" r="4.5" fill="var(--surface)" stroke="var(--good)" stroke-width="2.2"><title>Latest: ${inr(net[net.length - 1])}</title></circle>`;
   const step = Math.ceil(daily.length / 8);
-  daily.forEach((d, i) => { if (i % step === 0) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)">${d.day.slice(5)}</text>`; });
+  daily.forEach((d, i) => { if (i % step === 0) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${d.day.slice(5)}</text>`; });
   return s + '</svg>';
+}
+
+/* Small trend line under a tile */
+function spark(vals, color = 'var(--accent)') {
+  const n = vals.length; if (n < 2) return '';
+  const max = Math.max(...vals, 0), min = Math.min(...vals, 0), W = 120, H = 42;
+  const x = i => i / (n - 1) * W, y = v => H - 4 - (max === min ? 0 : (v - min) / (max - min)) * (H - 12);
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const id = 's' + Math.random().toString(36).slice(2, 8);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".3"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><polygon fill="url(#${id})" points="0,${H} ${pts} ${W},${H}"/><polyline fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="${pts}"/></svg>`;
 }
 
 /* ---------- Meta CSV parsing ---------- */
@@ -287,42 +433,57 @@ const views = {
     const d = await api('/summary?' + filterQuery(ovSel));
     const k = d.kpi;
     const rangeLabel = ovSel.p === 'all' ? `All time (from ${d.from})` : d.from === d.to ? d.from : `${d.from} to ${d.to}`;
-    const tile = (label, v, note = '', c = '') => `<div class="kpi ${c}"><div class="k">${label}</div><div class="v">${v}</div><div class="n">${note}</div></div>`;
+    const tile = (label, v, note = '', c = '', extra = '') => `<div class="kpi ${c}"><div class="k">${label}</div><div class="v">${v}</div><div class="n">${note}</div>${extra}</div>`;
+    let run = 0; const netSeries = d.daily.map(x => (run += x.gross - x.ads - x.adGst));
     const empty = !k.orders && !status.syncs.length;
     const inTransit = d.counts.new + d.counts.shipped;
     const costsNote = `ads ${inr(k.adSpend)}, ad GST ${inr(k.adGst)}${k.fixed ? ' and fixed costs ' + inr(k.fixed) : ''}`;
     el.innerHTML = filterBar(ovSel, rangeLabel) + `
       ${empty ? `<div class="banner"><span>No data yet. Connect Shopify and Meta in <a href="#settings">Settings</a>, or load sample data to look around.</span><button id="demo">Load sample data</button></div>` : ''}
-      <div class="kpis">
+      <div class="sect">Profit</div>
+      <div class="kpis k2">
         ${tile('Net profit if all orders are delivered', inr(k.netIfDelivered),
           `Counts all ${inTransit} Placed and Shipped orders as delivered (${inr(k.expectedPending)} profit) and leaves cancelled orders out. Orders already returned stay as losses. After ${costsNote}.`,
-          'hero ' + (k.netIfDelivered >= 0 ? 'good' : 'bad'))}
+          'big ' + (k.netIfDelivered >= 0 ? 'good' : 'bad'))}
         ${tile('Net profit after delivery and RTO', inr(k.net),
           `Only orders with a final outcome: ${k.delivered} delivered, ${k.rto} returned (gross ${inr(k.gross)}). After ${costsNote}.`,
-          'hero ' + (k.net >= 0 ? 'good' : 'bad'))}
+          'big ' + (k.net >= 0 ? 'good' : 'bad'), spark(netSeries, k.net >= 0 ? 'var(--good)' : 'var(--bad)'))}
+      </div>
+      <div class="sect">Sales</div>
+      <div class="kpis k2">
         ${tile('Product sales if all orders are delivered', inr(k.salesIfDelivered),
-          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out.`, 'wide')}
+          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out.`, 'mid', spark(d.daily.map(x => x.salesProj || 0)))}
         ${tile('Product sales after delivery and RTO', inr(k.salesDelivered),
-          `Only the ${d.counts.delivered} delivered orders. ${d.counts.rto} returned orders (${inr(k.rtoValue)}) are not counted.`, 'wide')}
-        ${tile('Ad spend', inr(k.adSpend),`+ ${inr(k.adGst)} GST · ROAS ${k.roas ? k.roas.toFixed(2) + 'x' : 'n/a'} · CPA ${inr(k.cpa)}`)}
+          `Only the ${d.counts.delivered} delivered orders. ${d.counts.rto} returned orders (${inr(k.rtoValue)}) are not counted.`, 'mid')}
+      </div>
+      <div class="sect">Orders, ads and cash</div>
+      <div class="kpis">
+        ${tile('Ad spend', inr(k.adSpend),`+ ${inr(k.adGst)} GST · ROAS ${k.roas ? k.roas.toFixed(2) + 'x' : 'n/a'} · CPA ${inr(k.cpa)}`, '', spark(d.daily.map(x => x.ads)))}
         ${tile('Bank balance', inr(k.bankBalance), `In ${inr(k.bankIn)} · Out ${inr(k.bankOut)} this period`)}
-        ${tile('Orders', k.orders.toLocaleString('en-IN'), `All orders, including ${d.counts.cancelled} cancelled. Sales ${inr(k.sales)} · ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'profit per order appears once orders are Delivered or RTO'))}
+        ${tile('Orders', k.orders.toLocaleString('en-IN'), `All orders, including ${d.counts.cancelled} cancelled. Sales ${inr(k.sales)} · ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'profit per order appears once orders are Delivered or RTO'), '', spark(d.daily.map(x => x.orders)))}
         ${tile('RTO rate', k.rtoRate.toFixed(1) + '%', `${k.rto} returned of ${k.delivered + k.rto} settled`, k.rtoRate > 30 ? 'bad' : '')}
       </div>
+      <div class="sect">Trends and breakdown</div>
       <div class="two">
         <div class="card"><h2>Daily profit and ad spend</h2>
           <div class="legend"><span><i style="background:var(--accent)"></i>Gross profit</span><span><i style="background:var(--bar)"></i>Ad spend</span><span><i style="background:var(--good)"></i>Net after ads</span></div>
           <p class="mut" style="font-size:12px;margin:0 0 6px">Profit is counted on the day an order was placed, and only once it is marked Delivered or RTO. Ad spend is counted as it happens, so the line dips while orders are still on the way.</p>
-          ${chart(d.daily)}</div>
+          ${chart(d.daily)}
+          <div class="mini">
+            <div><span>Avg daily ad spend</span><b>${inr(k.adSpend / Math.max(1, d.span))}</b></div>
+            <div><span>Orders per day</span><b>${(k.orders / Math.max(1, d.span)).toFixed(1)}</b></div>
+            <div><span>Best profit day</span><b>${(() => { const b = [...d.daily].sort((a, c) => c.gross - a.gross)[0]; return b && b.gross > 0 ? inr(b.gross) + ' <em>' + b.day.slice(5) + '</em>' : '–'; })()}</b></div>
+          </div></div>
         <div class="card"><h2>Order status</h2>
           <table><thead><tr><th>Status</th><th class="r">Orders</th><th class="r">Share</th><th class="r">Order value</th></tr></thead><tbody>
           ${STATUSES.map(s => `<tr><td><span class="pill ${s}">${STATUS_LABEL[s]}</span></td><td class="r"><b>${d.counts[s] || 0}</b></td>
             <td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>`).join('')}
           <tr style="font-weight:600"><td>All orders</td><td class="r">${k.orders}</td><td class="r mut">100%</td><td class="r">${inr(Object.values(d.statusValue).reduce((a, v) => a + v, 0))}</td></tr></tbody></table>
-          <div class="mut" style="margin:12px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em">By payment</div>
+          <div class="mut" style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--fg)">By payment</div>
           <table><tbody><tr><td>COD</td><td class="r">${d.byPayment.cod || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.cod || 0) / k.orders * 100) : 0}%</td></tr>
             <tr><td>Prepaid</td><td class="r">${d.byPayment.prepaid || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.prepaid || 0) / k.orders * 100) : 0}%</td></tr></tbody></table></div>
       </div>
+      <div class="sect">Cash</div>
       <div class="three">
         <div class="card"><h2>Bank movement by category</h2>${d.bankByCategory.length ? `<table><tbody>${d.bankByCategory.map(b =>
           `<tr><td>${esc(b.category)}</td><td class="r ${b.type === 'in' ? 'pos' : 'neg'}">${b.type === 'in' ? '+' : '-'}${inr(b.amt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No bank entries yet.</div>'}</div>
@@ -338,25 +499,100 @@ const views = {
 
   async orders(el) {
     el.innerHTML = filterBar(ordSel, filterLabel(ordSel)) + `<div class="card"><div class="form">
-      <label>Status<select id="f-status"><option value="">All</option>${STATUSES.map(s => `<option value="${s}" ${ordFilter.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></label>
-      <label>Search<input id="f-q" placeholder="Order, customer, city, product" value="${esc(ordFilter.q)}"></label>
+      <label style="flex:1;min-width:260px">Search
+        <input id="f-q" type="search" placeholder="Search anything: name, phone, state, product, status, amount…" value="${esc(ordFilter.q)}" style="width:100%" autocomplete="off"></label>
+      <button type="button" id="o-export" title="Download the orders shown below as an Excel file">Export to Excel</button>
       <span class="mut" id="ocount"></span></div>
-      <div class="scroll" id="otable"></div></div>`;
+      <div class="scroll"><table><thead>
+        <tr><th>Order</th><th>Date</th><th>Customer</th><th>Contact number</th><th>State</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th class="r">Profit</th></tr>
+      </thead><tbody id="obody"></tbody></table></div>
+      <div class="empty" id="oempty" hidden>No orders match.</div>
+      <p class="mut" style="font-size:12px;margin:12px 0 0">Type one or more words. Every word must appear somewhere in the row, so <code>rajasthan shipped</code> finds shipped orders from Rajasthan.</p></div>`;
     bindFilterBar(el, sel => { ordSel = sel; render(); });
+    const query = () => `${filterQuery(ordSel)}&q=${encodeURIComponent($('#f-q').value)}`;
     const load = async () => {
-      ordFilter = { status: $('#f-status').value, q: $('#f-q').value };
-      const rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
-      $('#ocount').textContent = rows.length + ' orders';
-      $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
-        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
+      ordFilter = { q: $('#f-q').value };
+      const rows = await api('/orders?' + query());
+      $('#ocount').textContent = rows.length + (ordFilter.q.trim() ? ' orders match' : ' orders');
+      $('#oempty').hidden = rows.length > 0;
+      $('#obody').innerHTML = rows.slice(0, 500).map(o => `
+        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${o.phone ? esc(o.phone) : '<span class="mut">–</span>'}</td><td>${o.province ? esc(o.province) : '<span class="mut">–</span>'}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
         <td><select data-id="${esc(o.id)}">${STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></td>
-        <td class="r ${cls(o.profit)}">${inr(o.profit)}${o.state === 'expected' ? ' <span class="mut" title="Profit if this order is delivered">if delivered</span>' : ''}</td></tr>`).join('')}</tbody></table>`
-        : '<div class="empty">No orders in this range.</div>';
+        <td class="r ${cls(o.profit)}">${inr(o.profit)}${o.state === 'expected' ? ' <span class="mut" title="Profit if this order is delivered">if delivered</span>' : ''}</td></tr>`).join('');
       el.querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', async () => {
         await api('/orders/' + encodeURIComponent(s.dataset.id), { method: 'PATCH', body: { status: s.value } }); load();
       }));
     };
-    $('#f-status').onchange = load; $('#f-q').oninput = load; load();
+    let timer;
+    $('#f-q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 200); });
+    $('#o-export').onclick = () => {   // exports exactly the rows shown
+      const a = document.createElement('a');
+      a.href = '/api/orders/export?' + query();
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    load();
+  },
+
+  async tracking(el) {
+    const d = await api('/tracking?' + filterQuery(trkSel));
+    const sm = d.summary, lim = d.limits;
+    const tile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+    const STAGE = { awaiting: ['Placed', 'st-awaiting'], in_transit: ['Shipped', 'st-transit'], delivered: ['Delivered', 'st-delivered'], rto: ['RTO', 'st-rto'], cancelled: ['Cancelled', 'st-cancelled'] };
+    const dur = h => h < 1 ? 'under 1 hour' : h < 48 ? Math.round(h) + (Math.round(h) === 1 ? ' hour' : ' hours') : (h / 24).toFixed(1) + ' days';
+    const when = iso => iso ? new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–';
+    const pct = n => sm.total ? n / sm.total * 100 : 0;
+    const seg = [['awaiting', 'var(--warn)', sm.awaiting], ['in_transit', 'var(--accent)', sm.inTransit], ['delivered', 'var(--good)', sm.delivered], ['rto', 'var(--bad)', sm.rto], ['cancelled', 'var(--bar)', sm.cancelled]];
+    const CHIPS = [['', 'All', sm.total], ['awaiting', 'Placed', sm.awaiting], ['in_transit', 'Shipped', sm.inTransit], ['delivered', 'Delivered', sm.delivered], ['rto', 'RTO', sm.rto], ['attention', 'Needs attention', sm.attention]];
+
+    el.innerHTML = filterBar(trkSel, filterLabel(trkSel)) + `
+      <div class="kpis">
+        ${tile('Placed', sm.awaiting, sm.awaitingOld ? `Not shipped yet. <b>${sm.awaitingOld}</b> waiting more than ${lim.awaitingHours} hours` : `Not shipped yet. None waiting more than ${lim.awaitingHours} hours`, sm.awaitingOld ? 'bad' : '')}
+        ${tile('Shipped', sm.inTransit, sm.transitOld ? `On the way, not delivered. <b>${sm.transitOld}</b> for more than ${lim.transitDays} days` : `On the way, not delivered. None for more than ${lim.transitDays} days`, sm.transitOld ? 'bad' : '')}
+        ${tile('Delivered', sm.delivered, 'Marked Delivered on the Orders tab, or reported by the courier')}
+        ${tile('RTO', sm.rto, 'Marked RTO on the Orders tab')}
+      </div>
+      <div class="card" style="margin-top:22px"><h2>Order pipeline</h2>
+        <div class="pipe" role="img" aria-label="Orders by stage">${seg.filter(x => x[2]).map(([k, c, n]) => `<i style="width:${pct(n)}%;background:${c}" title="${STAGE[k][0]}: ${n}"></i>`).join('')}</div>
+        <div class="pipekey">${seg.map(([k, c, n]) => `<span><i style="background:${c}"></i>${STAGE[k][0]}<b>${n}</b></span>`).join('')}
+          <span style="margin-left:auto">Average time to ship <b>${sm.avgDispatchHours === null ? '–' : dur(sm.avgDispatchHours)}</b></span></div></div>
+      <div class="card"><div class="form">
+        <div class="seg" role="group" aria-label="Stage">${CHIPS.map(([k, l, n]) => `<button type="button" data-stage="${k}" class="${trkFilter.stage === k ? 'on' : ''}">${l} · ${n}</button>`).join('')}</div>
+        <label style="flex:1;min-width:240px">Search<input id="t-q" type="search" placeholder="Order, customer, phone, state, courier, tracking number…" value="${esc(trkFilter.q)}" style="width:100%" autocomplete="off"></label>
+        <span class="mut" id="t-count"></span></div>
+        <div class="scroll"><table><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Stage</th><th>Courier</th><th>Tracking number</th><th>Shipped after</th><th>Alert</th></tr></thead><tbody id="t-body"></tbody></table></div>
+        <div class="empty" id="t-empty" hidden>No orders match.</div></div>
+      <div class="two" style="margin-top:22px">
+        <div class="card"><h2>By courier</h2>${d.couriers.length ? `<div class="scroll"><table><thead><tr><th>Courier</th><th class="r">Shipped in total</th><th class="r">Not delivered yet</th><th class="r">Delivered</th><th class="r">RTO</th><th class="r">Avg time to ship</th><th class="r">Avg days since shipped</th></tr></thead><tbody>${d.couriers.map(c => `
+          <tr><td><b>${esc(c.courier)}</b></td><td class="r">${c.shipped}</td><td class="r">${c.inTransit}</td><td class="r">${c.delivered}</td><td class="r">${c.rto}</td><td class="r">${c.avgDispatchHours === null ? '–' : dur(c.avgDispatchHours)}</td><td class="r">${c.avgTransitDays === null ? '–' : c.avgTransitDays.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No dispatched orders in this range.</div>'}</div>
+        <div class="card"><h2>What this tracks</h2>
+          <p style="margin:0 0 10px"><b>Placed:</b> the order reached Shopify. <b>Shipped:</b> Dropship India sent it and added the courier and tracking number to the order in Shopify.</p>
+          <p class="mut" style="margin:0 0 10px">Dropship India does not send its <b>confirmed</b> and <b>packed</b> steps to Shopify, so they can't be shown here. Until an order ships it reads "Placed".</p>
+          <p class="mut" style="margin:0">Delivered and RTO appear when you mark them on the Orders tab. Tracking numbers link to the courier's tracking page. Data refreshes from Shopify every ${status.syncMinutes} minutes, or press Sync now.</p></div>
+      </div>`;
+    bindFilterBar(el, sel => { trkSel = sel; render(); });
+
+    const draw = () => {
+      trkFilter = { stage: trkFilter.stage, q: $('#t-q').value };
+      const t = trkFilter.q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      const rows = d.rows.filter(o => (!trkFilter.stage || (trkFilter.stage === 'attention' ? o.alerts.length : o.stage === trkFilter.stage))
+        && t.every(w => [o.name, o.customer, o.phone, o.province, o.courier, o.tracking_no, STAGE[o.stage][0]].join(' ').toLowerCase().includes(w)));
+      $('#t-count').textContent = rows.length + ' orders';
+      $('#t-empty').hidden = rows.length > 0;
+      $('#t-body').innerHTML = rows.slice(0, 400).map(o => {
+        const detail = o.stage === 'awaiting' ? `Waiting ${dur(o.waitHours)} to ship` : o.stage === 'in_transit' && o.transitDays !== null ? `${o.transitDays < 1 ? dur(o.transitDays * 24) : o.transitDays.toFixed(1) + ' days'} since dispatch` : '';
+        return `<tr><td>${esc(o.name)}<div class="mut" style="font-size:12px">${when(o.created_at)}</div></td>
+          <td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}<div class="mut" style="font-size:12px">${o.phone ? esc(o.phone) : ''}</div></td>
+          <td>${o.province ? esc(o.province) : '<span class="mut">–</span>'}</td>
+          <td><span class="pill ${STAGE[o.stage][1]}">${STAGE[o.stage][0]}</span>${detail ? `<div class="mut" style="font-size:12px">${detail}</div>` : ''}</td>
+          <td>${o.courier ? esc(o.courier) : '<span class="mut">–</span>'}</td>
+          <td>${o.tracking_no ? (o.tracking_url && /^https?:\/\//.test(o.tracking_url) ? `<a class="trk" href="${esc(o.tracking_url)}" target="_blank" rel="noopener noreferrer">${esc(o.tracking_no)}</a>` : esc(o.tracking_no)) : '<span class="mut">–</span>'}</td>
+          <td>${o.dispatchHours === null ? '<span class="mut">–</span>' : dur(o.dispatchHours)}</td>
+          <td style="white-space:normal;min-width:170px">${o.alerts.length ? o.alerts.map(a => `<span class="neg" style="font-size:12.5px">${esc(a)}</span>`).join('<br>') : '<span class="mut">–</span>'}</td></tr>`;
+      }).join('');
+    };
+    el.querySelectorAll('button[data-stage]').forEach(b => b.onclick = () => { trkFilter.stage = b.dataset.stage; el.querySelectorAll('button[data-stage]').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    $('#t-q').addEventListener('input', draw);
+    draw();
   },
 
   async risk(el) {
@@ -558,17 +794,32 @@ const views = {
 async function render() {
   const tab = (location.hash.slice(1).split('?')[0] || 'overview');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + tab));
+  const PAGES = { overview: ['Overview', 'Profit, sales, ads and cash at a glance'], orders: ['Orders', 'Every Shopify order with its status and profit'],
+    tracking: ['Live tracking', 'Where every order is: placed, shipped by Dropship India, delivered or RTO'],
+    risk: ['Risk check', 'Spot suspicious orders before you ship them'], ads: ['Ad spend', 'Daily spend and manual ad entries'],
+    meta: ['Meta Ads', 'Performance from Ads Manager: reach, clicks, cost and returns'], bank: ['Bank', 'Money in and out, Meta ad funds and supplier wallet'],
+    settings: ['Settings', 'Connections, cost assumptions and product costs'], calculator: ['Profit calculator', 'Work out profit from orders placed, delivered and returned'] };
+  const pg = PAGES[tab] || PAGES.overview;
+  $('#ptitle').textContent = pg[0]; $('#psub').textContent = pg[1];
   status = await api('/status');
   const l = status.syncs.map(s => s.at).sort().pop();
   $('#syncnote').textContent = l ? 'Last sync ' + new Date(l).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
   $('#range').style.display = ['ads'].includes(tab) ? '' : 'none';
-  await (views[tab] || views.overview)($('#view'));
+  const stat = (id, ok, text) => { $('#dot-' + id).className = 'dot ' + (ok ? 'ok' : ''); $('#st-' + id).textContent = text; };
+  stat('shopify', status.connections.shopify, status.connections.shopify ? 'Connected' : 'Not connected');
+  stat('meta', status.connections.meta, status.connections.meta ? 'Connected' : 'CSV import');
+  const view = $('#view');
+  if (tab !== window.lastTab) { view.classList.remove('in'); void view.offsetWidth; view.classList.add('in'); window.lastTab = tab; }
+  await (views[tab] || views.overview)(view);
+  // lighter, smaller rupee sign in big numbers
+  view.querySelectorAll('.kpi .v').forEach(v => { if (!v.querySelector('.cur')) v.innerHTML = v.innerHTML.replace(/₹/g, '<span class="cur">₹</span>'); });
 }
 $('#range').onchange = render;
 $('#syncbtn').onclick = async e => { e.target.disabled = true; e.target.textContent = 'Syncing…'; await api('/sync', { method: 'POST' }); e.target.disabled = false; e.target.textContent = 'Sync now'; render(); };
 window.addEventListener('hashchange', render);
 render();
 setInterval(() => { if (!document.hidden && ['', '#overview'].includes(location.hash)) render(); }, 5 * 60 * 1000);
+setInterval(() => { if (!document.hidden && location.hash === '#tracking' && document.activeElement?.tagName !== 'INPUT') render(); }, 60 * 1000);
 </script>
 </body>
 </html>

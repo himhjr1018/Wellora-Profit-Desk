@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
 
 try { db.exec('ALTER TABLE orders ADD COLUMN customer TEXT'); } catch { /* already there */ }
 // Customer details used by the Risk tab, and your confirmation outcome ('', confirmed, unreachable, refused)
-for (const c of ['zip', 'province', 'phone', 'email', 'address', 'ip', 'discount', 'confirm']) { try { db.exec(`ALTER TABLE orders ADD COLUMN ${c} TEXT`); } catch { /* already there */ } }
+for (const c of ['zip', 'province', 'phone', 'email', 'address', 'ip', 'discount', 'confirm', 'fulfilled_at', 'courier', 'tracking_no', 'tracking_url', 'ship_status']) { try { db.exec(`ALTER TABLE orders ADD COLUMN ${c} TEXT`); } catch { /* already there */ } }
 db.exec(`CREATE TABLE IF NOT EXISTS blocklist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   kind TEXT,      -- phone | address | name

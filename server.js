@@ -7,6 +7,8 @@ import { syncAll, connections, lastSyncs, loadDemo, clearDemo, metaApp, metaAuth
 import { randomBytes } from 'node:crypto';
 import { pincodeStatus } from './pincodes.js';
 import { listRisk, setConfirm, blockOrder, blocklist } from './risk.js';
+import { buildXlsx } from './xlsx.js';
+import { listTracking } from './tracking.js';
 
 let metaState = null; // one-time value that ties the Meta login back to this app
 
@@ -35,6 +37,28 @@ async function api(req, res, url) {
 
   if (p === '/api/orders' && m === 'GET')
     return send(res, 200, listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '', from: q.get('from') || '', to: q.get('to') || '' }));
+
+  // Excel export of the orders currently shown (same filters as the Orders tab)
+  if (p === '/api/orders/export' && m === 'GET') {
+    const rows = listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '', from: q.get('from') || '', to: q.get('to') || '' });
+    const STATUS = { new: 'Placed', shipped: 'Shipped', delivered: 'Delivered', rto: 'RTO', cancelled: 'Cancelled' };
+    const buf = buildXlsx({
+      sheet: 'Orders',
+      headers: ['Order', 'Date', 'Customer', 'Contact number', 'State', 'Product', 'Payment', 'Amount (₹)', 'Status', 'Profit (₹)', 'Profit basis'],
+      widths: [12, 12, 24, 18, 22, 40, 10, 13, 12, 13, 14],
+      money: [7, 9],
+      rows: rows.map(o => [o.name, o.day, o.customer || '', o.phone || '', o.province || '', o.product, o.payment === 'cod' ? 'COD' : 'Prepaid',
+        Math.round(o.total * 100) / 100, STATUS[o.status] || o.status, Math.round(o.profit * 100) / 100,
+        o.state === 'expected' ? 'If delivered' : o.state === 'realised' ? 'Final' : 'Cancelled'])
+    });
+    const range = q.get('from') && q.get('to') ? (q.get('from') === q.get('to') ? q.get('from') : `${q.get('from')}_to_${q.get('to')}`) : num(q.get('days') ?? 30) > 0 ? `last-${num(q.get('days') ?? 30)}-days` : 'all-time';
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="wellora-orders-${range}.xlsx"`,
+      'Content-Length': buf.length
+    });
+    return res.end(buf);
+  }
 
   let mm;
   if ((mm = p.match(/^\/api\/orders\/(.+)$/)) && m === 'PATCH') {
@@ -161,6 +185,10 @@ async function api(req, res, url) {
     db.prepare('DELETE FROM bank_txns WHERE id=?').run(Number(mm[1]));
     return send(res, 200, { ok: true });
   }
+
+  // ---- Live tracking: placed, dispatched by Dropship India (courier and tracking number), delivered, returned ----
+  if (p === '/api/tracking' && m === 'GET')
+    return send(res, 200, listTracking({ days: num(q.get('days') ?? 30), from: q.get('from') || '', to: q.get('to') || '' }));
 
   // ---- Risk tab ----
   if (p === '/api/risk' && m === 'GET')

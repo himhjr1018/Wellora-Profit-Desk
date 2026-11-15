@@ -1,27 +1,31 @@
 <title>Dropship Profit Calculator</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
 <style>
 /* Layout: inputs on the left, sticky result panel on the right; stacks with results first on phones. */
 :root{
-  --bg:#f5f6f8; --surface:#ffffff; --fg:#14182b; --muted:#5d6479; --line:#dfe2ea;
-  --accent:#2d3a8c; --accent-fg:#ffffff; --field:#f5f6f8;
+  --bg:#f4f6fb; --surface:#ffffff; --fg:#141a33; --muted:#667090; --line:#e4e7f1;
+  --accent:#3b4cca; --accent-fg:#ffffff; --field:#f6f7fc;
   --good:#12805c; --good-bg:#e2f4ec; --bad:#c2352b; --bad-bg:#fbe9e7; --warn:#b4690e;
   --bar:#aab1c8;
-  --display:'Space Grotesk',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  --display:'Plus Jakarta Sans','Inter',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f1220; --surface:#171b2e; --fg:#e8eaf4; --muted:#9aa2bd; --line:#2a3050;
-  --accent:#8e9cff; --accent-fg:#0f1220; --field:#0f1220;
-  --good:#4cd3a0; --good-bg:#12332b; --bad:#ff8277; --bad-bg:#3a1b1a; --warn:#f0a95a; --bar:#4a5379;
+  --bg:#0c0f1d; --surface:#141932; --fg:#e9ecf8; --muted:#9aa3c2; --line:#242b4a;
+  --accent:#8f9dff; --accent-fg:#0c0f1d; --field:#0e1226;
+  --good:#4cd3a0; --good-bg:#12332b; --bad:#ff8277; --bad-bg:#3a1b1a; --warn:#f0a95a; --bar:#4b5582;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f1220; --surface:#171b2e; --fg:#e8eaf4; --muted:#9aa2bd; --line:#2a3050;
-  --accent:#8e9cff; --accent-fg:#0f1220; --field:#0f1220;
-  --good:#4cd3a0; --good-bg:#12332b; --bad:#ff8277; --bad-bg:#3a1b1a; --warn:#f0a95a; --bar:#4a5379;
+  --bg:#0c0f1d; --surface:#141932; --fg:#e9ecf8; --muted:#9aa3c2; --line:#242b4a;
+  --accent:#8f9dff; --accent-fg:#0c0f1d; --field:#0e1226;
+  --good:#4cd3a0; --good-bg:#12332b; --bad:#ff8277; --bad-bg:#3a1b1a; --warn:#f0a95a; --bar:#4b5582;
   color-scheme:dark}
 *{box-sizing:border-box}
+.embedded header{display:none}
+.embedded body{padding:2px 2px 24px}
+.embedded .wrap{max-width:none}
+.embedded .result{top:8px}
 body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);
   padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1080px;margin:0 auto}
@@ -30,14 +34,14 @@ h1{font:700 28px/1.15 var(--display);margin:0 0 6px;letter-spacing:-.01em;text-w
 header p{margin:0;color:var(--muted);max-width:62ch}
 .grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
 .inputs{display:grid;gap:16px;min-width:0}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
-.card h2{font:700 13px/1 var(--display);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 1px 2px rgba(20,26,51,.04),0 6px 20px rgba(20,26,51,.045)}
+.card h2{font:600 15px/1.3 var(--display);letter-spacing:-.005em;color:var(--fg);margin:0 0 16px}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .f{display:flex;flex-direction:column;gap:5px;min-width:0}
 .f label{font-weight:500;font-size:13px}
 .f small{color:var(--muted);font-size:12px;line-height:1.35}
 .in{position:relative}
-.in input{width:100%;font:500 15px var(--body);color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:7px;padding:9px 10px 9px 26px;font-variant-numeric:tabular-nums}
+.in input{width:100%;font:500 15px var(--body);color:var(--fg);background:var(--field);border:1px solid var(--line-strong,var(--line));border-radius:9px;padding:9px 10px 9px 26px;font-variant-numeric:tabular-nums}
 .in.pct input{padding:9px 28px 9px 10px}
 .in.plain input{padding:9px 10px}
 .in .u{position:absolute;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
@@ -47,14 +51,14 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline
 .check{display:flex;gap:8px;align-items:center;font-size:13px}
 .check input{width:16px;height:16px;accent-color:var(--accent)}
 .result{position:sticky;top:16px;display:grid;gap:14px;min-width:0}
-.hero{border-radius:10px;padding:20px;border:1px solid var(--line);background:var(--surface)}
+.hero{border-radius:14px;padding:22px;border:1px solid var(--line);background:var(--surface)}
 .hero.good{background:var(--good-bg);border-color:transparent}
 .hero.bad{background:var(--bad-bg);border-color:transparent}
 .hero .k{font:600 12px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .hero .big{font:700 40px/1.1 var(--display);margin:6px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .hero.good .big{color:var(--good)}.hero.bad .big{color:var(--bad)}
 .hero .sub{color:var(--muted);font-size:13px}
-.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .stat{background:var(--surface);padding:13px 14px}
 .stat .k{font-size:12px;color:var(--muted)}
 .stat .v{font:700 19px var(--display);font-variant-numeric:tabular-nums;margin-top:2px}
@@ -79,10 +83,11 @@ button:hover{border-color:var(--accent)}
 @media (max-width:460px){.fields{grid-template-columns:minmax(0,1fr)}.hero .big{font-size:34px}}
 </style>
 
+<script>if (window.self !== window.top) document.documentElement.classList.add("embedded");</script>
 <div class="wrap">
   <header>
     <h1>Dropship Profit Calculator</h1>
-    <p>Enter your numbers in rupees for one product. The result accounts for COD, RTO (returns), GST, ad cost and courier charges. Sample values are filled in; replace them with yours.</p>
+    <p>Enter your numbers in rupees for one product, how many orders you got and how many were delivered. The rest are returned (RTO) and cost you the courier and packaging charges. The result also counts GST, ad cost and fees. Sample values are filled in; replace them with yours.</p>
   </header>
 
   <div class="grid">
@@ -127,26 +132,35 @@ button:hover{border-color:var(--accent)}
       </section>
 
       <section class="card">
-        <h2>Marketing and volume</h2>
+        <h2>Orders and marketing</h2>
         <div class="fields">
+          <div class="f"><label for="orders">Orders placed</label>
+            <div class="in plain"><input id="orders" type="number" inputmode="numeric" min="0" value="21"></div></div>
+          <div class="f"><label for="delivered">Orders delivered</label>
+            <div class="in plain"><input id="delivered" type="number" inputmode="numeric" min="0" value="16"></div>
+            <small id="rtoline">The rest come back as RTO.</small></div>
+          <div class="f"><label for="delivpct">Delivery rate</label>
+            <div class="in pct"><input id="delivpct" type="number" inputmode="decimal" min="0" max="100" step="any" value="76.2"><span class="u r">%</span></div>
+            <small>Fill delivered or delivery rate. The other updates.</small></div>
+          <div class="f"><label for="fixed">Fixed costs</label>
+            <div class="in"><span class="u l">₹</span><input id="fixed" type="number" inputmode="decimal" min="0" value="0"></div>
+            <small>Store plan, apps, staff, tools for this period.</small></div>
+          <div class="f"><label for="adtotal">Total Meta ad spend</label>
+            <div class="in"><span class="u l">₹</span><input id="adtotal" type="number" inputmode="decimal" min="0" step="any" value="4200"></div>
+            <small>As shown in Ads Manager, before GST.</small></div>
           <div class="f"><label for="ad">Ad cost per order placed</label>
-            <div class="in"><span class="u l">₹</span><input id="ad" type="number" inputmode="decimal" min="0" value="200"></div>
-            <small>Meta or Google spend divided by orders.</small></div>
-          <div class="f"><label for="rto">RTO rate</label>
-            <div class="in pct"><input id="rto" type="number" inputmode="decimal" min="0" max="100" value="25"><span class="u r">%</span></div>
-            <small>Share of orders that come back undelivered.</small></div>
-          <div class="f"><label for="orders">Orders per month</label>
-            <div class="in plain"><input id="orders" type="number" inputmode="numeric" min="0" value="300"></div></div>
-          <div class="f"><label for="fixed">Fixed monthly costs</label>
-            <div class="in"><span class="u l">₹</span><input id="fixed" type="number" inputmode="decimal" min="0" value="3000"></div>
-            <small>Store plan, apps, staff, tools.</small></div>
+            <div class="in"><span class="u l">₹</span><input id="ad" type="number" inputmode="decimal" min="0" step="any" value="200"></div>
+            <small>Fill total spend or cost per order. The other updates.</small></div>
+          <div class="f"><label for="adgst">GST on ad spend</label>
+            <div class="in pct"><input id="adgst" type="number" inputmode="decimal" min="0" value="18"><span class="u r">%</span></div>
+            <small>Meta adds this on top. Use 0 if you claim it back.</small></div>
         </div>
       </section>
     </div>
 
     <aside class="result" aria-live="polite">
       <div class="hero" id="hero">
-        <div class="k">Net profit per month</div>
+        <div class="k">Net profit</div>
         <div class="big" id="net">₹0</div>
         <div class="sub" id="netsub"></div>
       </div>
@@ -156,7 +170,7 @@ button:hover{border-color:var(--accent)}
         <div class="stat"><div class="k">Profit margin</div><div class="v" id="margin">-</div><div class="n">on delivered revenue</div></div>
         <div class="stat"><div class="k">Break-even ROAS</div><div class="v" id="roas">-</div><div class="n" id="roasn"></div></div>
         <div class="stat"><div class="k">Max ad cost per order</div><div class="v" id="maxad">-</div><div class="n">before you lose money</div></div>
-        <div class="stat"><div class="k">Break-even RTO</div><div class="v" id="berto">-</div><div class="n" id="bertn"></div></div>
+        <div class="stat"><div class="k">Break-even delivery rate</div><div class="v" id="berto">-</div><div class="n" id="bertn"></div></div>
         <div class="stat"><div class="k">Orders delivered</div><div class="v" id="deliv">-</div><div class="n" id="delivn"></div></div>
       </div>
 
@@ -173,29 +187,79 @@ button:hover{border-color:var(--accent)}
 const $ = id => document.getElementById(id);
 const num = id => Math.max(0, parseFloat($(id).value) || 0);
 const inr = (n, d = 0) => (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits: d, maximumFractionDigits: d});
+const round = (v, d = 2) => String(Math.round(v * 10 ** d) / 10 ** d);
+
+// Two pairs of fields describe the same thing, so the one you did NOT edit last is filled in for you:
+//   delivered orders  <->  delivery rate %        total Meta ad spend  <->  ad cost per order placed
+let srcDel = 'count', srcAd = 'total';
+
+function syncLinked() {
+  const N = num('orders');
+  if (srcDel === 'pct') $('delivered').value = round(Math.min(N, N * Math.min(100, num('delivpct')) / 100), 0);
+  else $('delivpct').value = N ? round(Math.min(100, num('delivered') / N * 100), 1) : '0';
+  if (srcAd === 'total') $('ad').value = N ? round(num('adtotal') / N) : '0';
+  else $('adtotal').value = round(num('ad') * N);
+}
 
 function calc() {
+  syncLinked();
   const priceC = num('price'), priceP = num('pricep'), cost = num('cost'), gst = num('gst'), pack = num('pack');
   const ship = num('ship'), rship = num('rship');
   const cod = Math.min(100, num('cod')) / 100, codfee = num('codfee');
   const gw = num('gw') / 100, plat = num('plat') / 100;
-  const ad = num('ad'), r = Math.min(100, num('rto')) / 100, orders = num('orders'), fixed = num('fixed');
+  const N = num('orders'), fixed = num('fixed');
+  const D = Math.min(N, num('delivered')), R = N - D;                         // delivered and returned (RTO) orders
+  const adBase = num('adtotal'), adTotal = adBase * (1 + num('adgst') / 100);   // Meta spend, then with GST on top
 
-  // Revenue after GST
-  // COD and prepaid orders sell at different prices, so use the blend of the two
+  // Revenue after GST. COD and prepaid orders sell at different prices, so use the blend of the two
   const price = cod * priceC + (1 - cod) * priceP;
-  const net = $('incl').checked ? price * 100 / (100 + gst) : price;
-  const rev = net;
+  const rev = $('incl').checked ? price * 100 / (100 + gst) : price;
 
-  // Costs on one delivered order
+  // One delivered order, before ads
   const codCost = cod * codfee;
   const gwCost = (1 - cod) * gw * priceP;   // gateway fee applies to prepaid orders only
   const platCost = plat * price;
-  const d = rev - cost - ship - codCost - gwCost - platCost - pack;   // profit on a delivered order, before ads
-  const L = ship + rship + pack;                                      // loss on a returned order
+  const d = rev - cost - ship - codCost - gwCost - platCost - pack;
+  // One returned order: forward courier, return courier and packaging, and the product is not paid for
+  const L = ship + rship + pack;
 
-  // Expected per order placed
-  const del = 1 - r;
+  const net = D * d - R * L - adTotal - fixed;
+  const ppo = N ? net / N : 0;
+
+  // Hero
+  $('hero').className = 'hero ' + (net > 0 ? 'good' : net < 0 ? 'bad' : '');
+  $('net').textContent = inr(net);
+  $('netsub').textContent = N
+    ? `${D} delivered × ${inr(d)} profit, less ${R} returned (RTO) × ${inr(L)} charges, less ${inr(adTotal)} ads incl. GST${fixed ? ' and ' + inr(fixed) + ' fixed costs' : ''}`
+    : 'Enter the number of orders placed';
+  $('rtoline').textContent = N ? `${R} returned (RTO). Each costs ${inr(L)} in courier and packaging.` : 'The rest come back as RTO.';
+
+  $('ppo').textContent = inr(ppo, 2);
+  $('ppo').style.color = ppo >= 0 ? 'var(--good)' : 'var(--bad)';
+  const delivRev = D * rev;
+  $('margin').textContent = delivRev > 0 ? (net / delivRev * 100).toFixed(1) + '%' : '-';
+
+  // Break-even: the ad spend (incl. GST) and the delivery rate at which profit is exactly zero
+  const maxAdTotal = D * d - R * L - fixed;
+  const maxAdBase = maxAdTotal / (1 + num('adgst') / 100);
+  $('maxad').textContent = maxAdBase > 0 && N ? inr(maxAdBase / N) : '₹0';
+  const sales = N * price;
+  if (maxAdBase > 0 && sales > 0) {
+    $('roas').textContent = (sales / maxAdBase).toFixed(2) + 'x';
+    $('roasn').textContent = adBase > 0 ? `Yours: ${(sales / adBase).toFixed(2)}x (sales ÷ ad spend)` : 'Sales value ÷ ad spend';
+  } else { $('roas').textContent = 'n/a'; $('roasn').textContent = 'No ad budget is profitable at this delivery rate'; }
+
+  const needD = d + L > 0 ? (N * L + adTotal + fixed) / (d + L) : Infinity;
+  const needP = N ? needD / N * 100 : 0;
+  const yourP = N ? D / N * 100 : 0;
+  $('berto').textContent = needP > 100 ? 'Over 100%' : Math.max(0, needP).toFixed(1) + '%';
+  $('bertn').textContent = needP > 100 ? 'Loss even if every order is delivered' : (yourP >= needP ? `Your ${yourP.toFixed(1)}% is above this` : `Your ${yourP.toFixed(1)}% is below this`);
+
+  $('deliv').textContent = D.toLocaleString('en-IN');
+  $('delivn').textContent = `${R.toLocaleString('en-IN')} returned (RTO) of ${N.toLocaleString('en-IN')} placed`;
+
+  // Where each order's money goes: averaged over all orders placed, so the rows add up to the profit per order
+  const del = N ? D / N : 0, r = N ? R / N : 0;
   const parts = [
     {n: 'Revenue after GST', v: del * rev, cls: 'rev'},
     {n: 'Supplier cost', v: -del * cost},
@@ -204,42 +268,10 @@ function calc() {
     {n: 'Gateway fees', v: -del * gwCost},
     {n: 'Platform fees', v: -del * platCost},
     {n: 'Packaging', v: -pack},
-    {n: 'Ads', v: -ad},
+    {n: 'Meta ads', v: -(N ? adBase / N : 0)},
+    {n: 'GST on ads', v: -(N ? (adTotal - adBase) / N : 0)},
+    {n: 'Fixed costs', v: -(N ? fixed / N : 0)},
   ];
-  const ppo = d * del - r * L - ad;
-  const monthly = ppo * orders - fixed;
-
-  // Hero
-  const hero = $('hero');
-  hero.className = 'hero ' + (monthly > 0 ? 'good' : monthly < 0 ? 'bad' : '');
-  $('net').textContent = inr(monthly);
-  $('netsub').textContent = orders
-    ? `${orders.toLocaleString('en-IN')} orders at ${inr(ppo, 2)} each, less ${inr(fixed)} fixed costs`
-    : 'Enter orders per month to see a monthly figure';
-
-  $('ppo').textContent = inr(ppo, 2);
-  $('ppo').style.color = ppo >= 0 ? 'var(--good)' : 'var(--bad)';
-  const delivRev = del * rev;
-  const margin = delivRev > 0 ? ppo / delivRev * 100 : 0;
-  $('margin').textContent = delivRev > 0 ? margin.toFixed(1) + '%' : '-';
-
-  const beCpa = d * del - r * L;           // ad cost at which profit hits zero
-  $('maxad').textContent = beCpa > 0 ? inr(beCpa) : '₹0';
-  if (beCpa > 0 && price > 0) {
-    $('roas').textContent = (price / beCpa).toFixed(2) + 'x';
-    $('roasn').textContent = 'Sale value ÷ ad spend';
-  } else { $('roas').textContent = 'n/a'; $('roasn').textContent = 'No ad budget is profitable at this RTO'; }
-
-  const be = d + L > 0 ? (d - ad) / (d + L) : 0;
-  const beP = Math.max(0, Math.min(1, be)) * 100;
-  $('berto').textContent = beP.toFixed(1) + '%';
-  $('bertn').textContent = d - ad <= 0 ? 'Loss even with zero returns' : (r * 100 > beP ? 'Your RTO is above this' : 'Your RTO is below this');
-
-  const dn = orders * del;
-  $('deliv').textContent = Math.round(dn).toLocaleString('en-IN');
-  $('delivn').textContent = `${Math.round(orders * r).toLocaleString('en-IN')} returned`;
-
-  // Breakdown rows
   const maxv = Math.max(...parts.map(p => Math.abs(p.v)), Math.abs(ppo), 1);
   let html = parts.filter(p => Math.abs(p.v) > 0.005).map(p =>
     `<div class="row ${p.cls || ''}"><span>${p.n}</span><span class="t">${p.v < 0 ? '-' : ''}${inr(Math.abs(p.v), 2)}</span><div class="bar"><i style="width:${Math.abs(p.v) / maxv * 100}%"></i></div></div>`).join('');
@@ -247,12 +279,16 @@ function calc() {
   $('rows').innerHTML = html;
 }
 
-const KEY = 'dropship-calc-v1';
+const KEY = 'dropship-calc-v2';   // v2: orders placed and delivered replaced the RTO rate
 const ids = [...document.querySelectorAll('input')].map(i => i.id);
-const save = () => { try { const o = {}; ids.forEach(id => { const el = $(id); o[id] = el.type === 'checkbox' ? el.checked : el.value; }); localStorage.setItem(KEY, JSON.stringify(o)); } catch {} };
-const apply = o => ids.forEach(id => { if (id in o) { const el = $(id); el.type === 'checkbox' ? (el.checked = !!o[id]) : (el.value = o[id]); } });
+const save = () => { try { const o = { srcDel, srcAd }; ids.forEach(id => { const el = $(id); o[id] = el.type === 'checkbox' ? el.checked : el.value; }); localStorage.setItem(KEY, JSON.stringify(o)); } catch {} };
+const apply = o => { ids.forEach(id => { if (id in o) { const el = $(id); el.type === 'checkbox' ? (el.checked = !!o[id]) : (el.value = o[id]); } }); srcDel = o.srcDel || srcDel; srcAd = o.srcAd || srcAd; };
 
-document.querySelectorAll('input').forEach(i => i.addEventListener('input', () => { calc(); save(); }));
+document.querySelectorAll('input').forEach(i => i.addEventListener('input', () => {
+  if (i.id === 'delivered') srcDel = 'count'; else if (i.id === 'delivpct') srcDel = 'pct';
+  else if (i.id === 'adtotal') srcAd = 'total'; else if (i.id === 'ad') srcAd = 'per';
+  calc(); save();
+}));
 
 (async () => {
   let saved = null;
@@ -263,7 +299,7 @@ document.querySelectorAll('input').forEach(i => i.addEventListener('input', () =
     try {
       const s = await (await fetch('/api/settings')).json();
       apply({ cost: s.default_cost, gst: s.gst, incl: s.price_incl_gst, pack: s.pack, ship: s.ship, rship: s.return_ship,
-              codfee: s.cod_fee, gw: s.gateway_pct, plat: s.platform_pct, fixed: s.fixed_monthly });
+              codfee: s.cod_fee, gw: s.gateway_pct, plat: s.platform_pct, fixed: s.fixed_monthly, adgst: s.ad_gst });
     } catch {}
   }
   calc();

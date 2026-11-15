@@ -27,15 +27,27 @@ export function orderEconomics(o, s, costs) {
   return { profit: deliveredProfit, revenue: net, state: 'expected' };
 }
 
+export const STATUS_LABEL = { new: 'Placed', shipped: 'Shipped', delivered: 'Delivered', rto: 'RTO', cancelled: 'Cancelled' };
+
+// One search box for the whole table. Every word typed must appear somewhere in the row:
+// order, date, customer, phone, state, product, COD or prepaid, status, amount or profit: exactly the columns you see.
 export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '', to: toOpt = '' } = {}) {
   const s = getSettings(), costs = costMap();
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
   const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : '0000-00-00';
   const to = valid(toOpt) ? toOpt : '9999-12-31';
-  let rows = db.prepare('SELECT * FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC').all(from, to);
+  let rows = db.prepare('SELECT * FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC').all(from, to)
+    .map(o => ({ ...o, ...orderEconomics(o, s, costs) }));
   if (status) rows = rows.filter(o => o.status === status);
-  if (q) { const t = q.toLowerCase(); rows = rows.filter(o => `${o.name} ${o.customer || ''} ${o.city} ${o.product}`.toLowerCase().includes(t)); }
-  return rows.map(o => ({ ...o, ...orderEconomics(o, s, costs) }));
+  const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length) {
+    rows = rows.filter(o => {
+      const hay = [o.name, o.day, o.customer, o.phone, o.province, o.product, o.payment === 'cod' ? 'cod' : 'prepaid', STATUS_LABEL[o.status], o.status,
+        Math.round(o.total), Math.round(o.profit)].join(' ').toLowerCase();
+      return terms.every(w => hay.includes(w));
+    });
+  }
+  return rows;
 }
 
 // Pass days for "last N days", or an explicit from/to (YYYY-MM-DD) for a custom window.
@@ -56,7 +68,7 @@ export function summary(days = 30, fromOpt = '', toOpt = '') {
 
   const counts = { new: 0, shipped: 0, delivered: 0, rto: 0, cancelled: 0 };
   const daily = {};
-  const day = d => (daily[d] ||= { day: d, orders: 0, revenue: 0, gross: 0, ads: 0, adGst: 0 });
+  const day = d => (daily[d] ||= { day: d, orders: 0, revenue: 0, gross: 0, ads: 0, adGst: 0, salesProj: 0 });
   let revenue = 0, gross = 0, expected = 0, sales = 0, codOrders = 0;
   let salesIfDelivered = 0, salesDelivered = 0, rtoValue = 0;   // product sales (order totals) under the two views
   const statusValue = {}, byPayment = { cod: 0, prepaid: 0 }, byProduct = {};   // breakdowns of ALL orders, cancelled included
@@ -73,7 +85,7 @@ export function summary(days = 30, fromOpt = '', toOpt = '') {
     bp.orders++; bp.value += o.total;
     if (o.status === 'delivered') salesDelivered += o.total;
     if (o.status === 'rto') rtoValue += o.total;
-    if (o.status !== 'cancelled' && o.status !== 'rto') salesIfDelivered += o.total;   // Placed + Shipped + Delivered
+    if (o.status !== 'cancelled' && o.status !== 'rto') { salesIfDelivered += o.total; d.salesProj += o.total; }   // Placed + Shipped + Delivered
     if (e.state === 'realised') { revenue += e.revenue; gross += e.profit; d.revenue += e.revenue; d.gross += e.profit; }
     else if (e.state === 'expected') expected += e.profit;
   }
