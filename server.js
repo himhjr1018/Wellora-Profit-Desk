@@ -5,6 +5,7 @@ import { db, ROOT, getSettings, setSettings, todayIST, daysAgo } from './db.js';
 import { summary, listOrders } from './summary.js';
 import { syncAll, connections, lastSyncs, loadDemo, clearDemo, metaApp, metaAuthUrl, metaFinishAuth, metaStatus, metaRedirect } from './sync.js';
 import { randomBytes } from 'node:crypto';
+import { pincodeStatus } from './pincodes.js';
 
 let metaState = null; // one-time value that ties the Meta login back to this app
 
@@ -160,6 +161,7 @@ async function api(req, res, url) {
     return send(res, 200, { ok: true });
   }
 
+  if (p === '/api/pincode-status') return send(res, 200, pincodeStatus());
   if (p === '/api/status') return send(res, 200, { connections: connections(), meta: { ...metaStatus(), redirectUri: metaRedirect() }, syncs: lastSyncs(), syncMinutes: SYNC_MIN });
   if (p === '/api/sync' && m === 'POST') return send(res, 200, await syncAll());
   if (p === '/api/demo' && m === 'POST') { loadDemo(); return send(res, 200, { ok: true }); }

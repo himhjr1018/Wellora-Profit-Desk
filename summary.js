@@ -1,4 +1,5 @@
 import { db, getSettings, daysAgo, todayIST } from './db.js';
+import { checkPincode } from './pincodes.js';
 
 function costMap() {
   const m = {};
@@ -27,6 +28,47 @@ export function orderEconomics(o, s, costs) {
   return { profit: deliveredProfit, revenue: net, state: 'expected' };
 }
 
+// ---------- Basic fraud / risk check ----------
+// Hints for deciding which COD orders to confirm before shipping. A flag is not proof of fraud.
+// Uses only what is stored: customer name, city, quantity, time and the outcome of the customer's other orders.
+const WEIGHTS = { history: 2, repeat24h: 2, oddName: 2, riskyCity: 1, bulk: 1 };
+
+function oddName(name) {
+  const n = (name || '').trim();
+  if (!n) return false;
+  const words = n.split(/\s+/);
+  return words.length < 2 || n.length < 4 || /[0-9_@#$%^&*<>]/.test(n) || /(.)\1{3,}/i.test(n)
+    || words.some(w => w.length >= 4 && /^[^aeiouy]+$/i.test(w));
+}
+
+export function riskByOrder() {
+  const all = db.prepare('SELECT id, customer, city, status, qty, created_at, zip, province, source FROM orders').all();
+  const byCust = {}, byCity = {};
+  for (const o of all) {
+    const k = (o.customer || '').trim().toLowerCase();
+    if (k) (byCust[k] ||= []).push(o);
+    const c = (o.city || '').trim().toLowerCase();
+    if (c) { const s = (byCity[c] ||= { n: 0, bad: 0 }); s.n++; if (o.status === 'cancelled' || o.status === 'rto') s.bad++; }
+  }
+  const out = {};
+  for (const o of all) {
+    const flags = []; let score = 0;
+    const k = (o.customer || '').trim().toLowerCase();
+    const others = k ? byCust[k].filter(x => x.id !== o.id) : [];
+    const bad = others.filter(x => x.status === 'cancelled' || x.status === 'rto').length;
+    if (bad) { flags.push(`Same customer has ${bad} other cancelled or returned order${bad > 1 ? 's' : ''}`); score += WEIGHTS.history; }
+    const t = Date.parse(o.created_at);
+    if (others.some(x => Math.abs(Date.parse(x.created_at) - t) <= 864e5)) { flags.push('Same customer ordered again within 24 hours'); score += WEIGHTS.repeat24h; }
+    if (oddName(o.customer)) { flags.push('Name looks unusual'); score += WEIGHTS.oddName; }
+    const cs = byCity[(o.city || '').trim().toLowerCase()];
+    if (cs && cs.n >= 5 && cs.bad / cs.n >= 0.35) { flags.push(`City has ${cs.bad} cancelled or returned of ${cs.n} orders`); score += WEIGHTS.riskyCity; }
+    if ((o.qty || 1) >= 3) { flags.push(`Large quantity (${o.qty} units)`); score += WEIGHTS.bulk; }
+    for (const f of checkPincode(o)) { flags.push(f.text); score += f.weight; }   // pincode, state and city against India Post
+    out[o.id] = { score, level: score >= 4 ? 'high' : score >= 2 ? 'medium' : score >= 1 ? 'low' : 'none', flags };
+  }
+  return out;
+}
+
 export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '', to: toOpt = '' } = {}) {
   const s = getSettings(), costs = costMap();
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
@@ -35,7 +77,8 @@ export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '',
   let rows = db.prepare('SELECT * FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC').all(from, to);
   if (status) rows = rows.filter(o => o.status === status);
   if (q) { const t = q.toLowerCase(); rows = rows.filter(o => `${o.name} ${o.customer || ''} ${o.city} ${o.product}`.toLowerCase().includes(t)); }
-  return rows.map(o => ({ ...o, ...orderEconomics(o, s, costs) }));
+  const risk = riskByOrder();
+  return rows.map(o => ({ ...o, ...orderEconomics(o, s, costs), risk: risk[o.id] }));
 }
 
 // Pass days for "last N days", or an explicit from/to (YYYY-MM-DD) for a custom window.

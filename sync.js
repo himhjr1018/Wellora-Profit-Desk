@@ -91,6 +91,8 @@ function mapOrder(o) {
     created_at: o.created_at,
     day: istDay(o.created_at),
     city: o.shipping_address?.city || '',
+    zip: String(o.shipping_address?.zip || '').replace(/\s+/g, ''),
+    province: o.shipping_address?.province || '',
     customer: [o.customer?.first_name, o.customer?.last_name].filter(Boolean).join(' ').trim()
       || o.shipping_address?.name || o.billing_address?.name || '',
     total: parseFloat(o.total_price) || 0,
@@ -107,9 +109,10 @@ export async function syncShopify() {
   const since = new Date(Date.now() - 90 * 864e5).toISOString();
   let url = `https://${store}/admin/api/2024-10/orders.json?status=any&limit=250&created_at_min=${encodeURIComponent(since)}`;
   const up = db.prepare(`
-    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer)
-    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?)
+    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer,zip,province)
+    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?,?,?)
     ON CONFLICT(id) DO UPDATE SET
+      zip=COALESCE(NULLIF(excluded.zip,''), orders.zip), province=COALESCE(NULLIF(excluded.province,''), orders.province),
       total=excluded.total, payment=excluded.payment, product=excluded.product, qty=excluded.qty, city=excluded.city,
       customer=COALESCE(NULLIF(excluded.customer,''), orders.customer),
       status=CASE WHEN orders.manual=1 THEN orders.status ELSE excluded.status END`);
@@ -120,7 +123,7 @@ export async function syncShopify() {
     const { orders } = await res.json();
     for (const raw of orders) {
       const o = mapOrder(raw);
-      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer);
+      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer, o.zip, o.province);
       n++;
     }
     const next = (res.headers.get('link') || '').match(/<([^>]+)>;\s*rel="next"/);

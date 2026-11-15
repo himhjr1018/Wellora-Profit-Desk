@@ -58,6 +58,9 @@ td.r,th.r{text-align:right}
 .pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:500;background:var(--field);border:1px solid var(--line)}
 .pill.delivered{background:var(--good-bg);color:var(--good);border-color:transparent}
 .pill.rto{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.pill.risk-high{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.pill.risk-medium{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.risk-low{color:var(--muted)}
 .pill.shipped,.pill.new{background:var(--warn-bg);color:var(--warn);border-color:transparent}
 .form{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
 .form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
@@ -117,7 +120,7 @@ let metaSel = { p: '30' };   // Meta Ads tab filter
 let ovSel = { p: '30' };     // Overview tab filter
 let ordSel = { p: '30' };    // Orders tab date filter
 let bankSel = { p: '30' };   // Bank tab date filter
-let ordFilter = { status: '', q: '' }; // Orders tab status and search, kept when the date filter changes
+let ordFilter = { status: '', q: '', risk: '' }; // Orders tab status and search, kept when the date filter changes
 
 // Date filter used by the Overview: presets plus a single-day picker
 // "Today" is the Indian date, because order and ad days are stored in IST
@@ -334,24 +337,38 @@ const views = {
   async orders(el) {
     el.innerHTML = filterBar(ordSel, filterLabel(ordSel)) + `<div class="card"><div class="form">
       <label>Status<select id="f-status"><option value="">All</option>${STATUSES.map(s => `<option value="${s}" ${ordFilter.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></label>
+      <label>Risk<select id="f-risk"><option value="">All</option><option value="medium" ${ordFilter.risk === 'medium' ? 'selected' : ''}>Medium and High</option><option value="high" ${ordFilter.risk === 'high' ? 'selected' : ''}>High only</option></select></label>
       <label>Search<input id="f-q" placeholder="Order, customer, city, product" value="${esc(ordFilter.q)}"></label>
       <span class="mut" id="ocount"></span></div>
-      <div class="scroll" id="otable"></div></div>`;
+      <div id="pinnote" class="mut" style="font-size:12px;margin:0 0 10px"></div>
+      <div class="scroll" id="otable"></div>
+      <p class="mut" style="font-size:12px;margin:12px 0 0">Risk flags are hints for orders worth a call or WhatsApp confirmation before shipping. They are not proof of fraud: a flag can be a genuine repeat customer or a late change of mind.</p></div>`;
     bindFilterBar(el, sel => { ordSel = sel; render(); });
+    api('/pincode-status').then(s => { const n = $('#pinnote'); if (!n) return;
+      n.innerHTML = s.loaded ? `Pincode check is on: orders are checked against ${s.rows.toLocaleString('en-IN')} India Post offices.`
+        : `<b>Pincode check is off.</b> The India Post pincode directory is not loaded yet${s.error ? ' (' + esc(s.error) + ')' : ''}, so pincode, state and city are not being checked.`; });
+    const RISK_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
+    const riskCell = o => o.risk && o.risk.level !== 'none'
+      ? `<span class="pill risk-${o.risk.level}" title="${esc(o.risk.flags.join('. '))}">${RISK_LABEL[o.risk.level]}</span><div class="mut" style="font-size:11px;white-space:normal;max-width:230px;margin-top:2px">${esc(o.risk.flags.join(' · '))}</div>`
+      : '<span class="mut">–</span>';
     const load = async () => {
-      ordFilter = { status: $('#f-status').value, q: $('#f-q').value };
-      const rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
-      $('#ocount').textContent = rows.length + ' orders';
-      $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
-        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
+      ordFilter = { status: $('#f-status').value, q: $('#f-q').value, risk: $('#f-risk').value };
+      let rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
+      const lvl = { low: 1, medium: 2, high: 3, none: 0 };
+      const flagged = rows.filter(o => o.risk && lvl[o.risk.level] >= 2).length;
+      if (ordFilter.risk) rows = rows.filter(o => o.risk && lvl[o.risk.level] >= lvl[ordFilter.risk]);
+      $('#ocount').textContent = `${rows.length} orders` + (flagged ? ` · ${flagged} medium or high risk in this range` : '');
+      $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Pincode</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th>Risk</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
+        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${o.zip ? esc(o.zip) : '<span class="mut">–</span>'}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
         <td><select data-id="${esc(o.id)}">${STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></td>
+        <td>${riskCell(o)}</td>
         <td class="r ${cls(o.profit)}">${inr(o.profit)}${o.state === 'expected' ? ' <span class="mut" title="Profit if this order is delivered">if delivered</span>' : ''}</td></tr>`).join('')}</tbody></table>`
         : '<div class="empty">No orders in this range.</div>';
       el.querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', async () => {
         await api('/orders/' + encodeURIComponent(s.dataset.id), { method: 'PATCH', body: { status: s.value } }); load();
       }));
     };
-    $('#f-status').onchange = load; $('#f-q').oninput = load; load();
+    $('#f-status').onchange = load; $('#f-risk').onchange = load; $('#f-q').oninput = load; load();
   },
 
   async ads(el) {

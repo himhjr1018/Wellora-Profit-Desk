@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
 `);
 
 try { db.exec('ALTER TABLE orders ADD COLUMN customer TEXT'); } catch { /* already there */ }
+for (const c of ['zip', 'province']) { try { db.exec(`ALTER TABLE orders ADD COLUMN ${c} TEXT`); } catch { /* already there */ } }
 
 // Extra Meta metrics (added later, so migrate existing databases)
 for (const c of ['impressions', 'clicks', 'reach', 'purchases', 'purchase_value']) {
