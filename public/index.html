@@ -98,7 +98,7 @@ iframe{width:100%;height:1100px;border:1px solid var(--line);border-radius:10px;
     </div>
   </div>
   <nav id="tabs">
-    <a href="#overview">Overview</a><a href="#orders">Orders</a><a href="#ads">Ad spend</a><a href="#meta">Meta Ads</a>
+    <a href="#overview">Overview</a><a href="#orders">Orders</a><a href="#risk">Risk</a><a href="#ads">Ad spend</a><a href="#meta">Meta Ads</a>
     <a href="#bank">Bank</a><a href="#settings">Settings</a><a href="#calculator">Calculator</a>
   </nav>
   <div id="view"></div>
@@ -120,7 +120,9 @@ let metaSel = { p: '30' };   // Meta Ads tab filter
 let ovSel = { p: '30' };     // Overview tab filter
 let ordSel = { p: '30' };    // Orders tab date filter
 let bankSel = { p: '30' };   // Bank tab date filter
-let ordFilter = { status: '', q: '', risk: '' }; // Orders tab status and search, kept when the date filter changes
+let riskSel = { p: '30' };   // Risk tab date filter
+let riskFilter = { level: 'medium', confirm: '', q: '' };   // Risk tab: shows Medium and High risk by default
+let ordFilter = { status: '', q: '' }; // Orders tab status and search, kept when the date filter changes
 
 // Date filter used by the Overview: presets plus a single-day picker
 // "Today" is the Indian date, because order and ad days are stored in IST
@@ -337,38 +339,78 @@ const views = {
   async orders(el) {
     el.innerHTML = filterBar(ordSel, filterLabel(ordSel)) + `<div class="card"><div class="form">
       <label>Status<select id="f-status"><option value="">All</option>${STATUSES.map(s => `<option value="${s}" ${ordFilter.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></label>
-      <label>Risk<select id="f-risk"><option value="">All</option><option value="medium" ${ordFilter.risk === 'medium' ? 'selected' : ''}>Medium and High</option><option value="high" ${ordFilter.risk === 'high' ? 'selected' : ''}>High only</option></select></label>
       <label>Search<input id="f-q" placeholder="Order, customer, city, product" value="${esc(ordFilter.q)}"></label>
       <span class="mut" id="ocount"></span></div>
-      <div id="pinnote" class="mut" style="font-size:12px;margin:0 0 10px"></div>
-      <div class="scroll" id="otable"></div>
-      <p class="mut" style="font-size:12px;margin:12px 0 0">Risk flags are hints for orders worth a call or WhatsApp confirmation before shipping. They are not proof of fraud: a flag can be a genuine repeat customer or a late change of mind.</p></div>`;
+      <div class="scroll" id="otable"></div></div>`;
     bindFilterBar(el, sel => { ordSel = sel; render(); });
-    api('/pincode-status').then(s => { const n = $('#pinnote'); if (!n) return;
-      n.innerHTML = s.loaded ? `Pincode check is on: orders are checked against ${s.rows.toLocaleString('en-IN')} India Post offices.`
-        : `<b>Pincode check is off.</b> The India Post pincode directory is not loaded yet${s.error ? ' (' + esc(s.error) + ')' : ''}, so pincode, state and city are not being checked.`; });
-    const RISK_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
-    const riskCell = o => o.risk && o.risk.level !== 'none'
-      ? `<span class="pill risk-${o.risk.level}" title="${esc(o.risk.flags.join('. '))}">${RISK_LABEL[o.risk.level]}</span><div class="mut" style="font-size:11px;white-space:normal;max-width:230px;margin-top:2px">${esc(o.risk.flags.join(' · '))}</div>`
-      : '<span class="mut">–</span>';
     const load = async () => {
-      ordFilter = { status: $('#f-status').value, q: $('#f-q').value, risk: $('#f-risk').value };
-      let rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
-      const lvl = { low: 1, medium: 2, high: 3, none: 0 };
-      const flagged = rows.filter(o => o.risk && lvl[o.risk.level] >= 2).length;
-      if (ordFilter.risk) rows = rows.filter(o => o.risk && lvl[o.risk.level] >= lvl[ordFilter.risk]);
-      $('#ocount').textContent = `${rows.length} orders` + (flagged ? ` · ${flagged} medium or high risk in this range` : '');
-      $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Pincode</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th>Risk</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
-        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${o.zip ? esc(o.zip) : '<span class="mut">–</span>'}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
+      ordFilter = { status: $('#f-status').value, q: $('#f-q').value };
+      const rows = await api(`/orders?${filterQuery(ordSel)}&status=${ordFilter.status}&q=${encodeURIComponent(ordFilter.q)}`);
+      $('#ocount').textContent = rows.length + ' orders';
+      $('#otable').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>City</th><th>Product</th><th>Pay</th><th class="r">Amount</th><th>Status</th><th class="r">Profit</th></tr></thead><tbody>${rows.slice(0, 500).map(o => `
+        <tr><td>${esc(o.name)}</td><td>${o.day}</td><td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}</td><td>${esc(o.city)}</td><td>${esc(o.product)}</td><td>${o.payment.toUpperCase()}</td><td class="r">${inr(o.total)}</td>
         <td><select data-id="${esc(o.id)}">${STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select></td>
-        <td>${riskCell(o)}</td>
         <td class="r ${cls(o.profit)}">${inr(o.profit)}${o.state === 'expected' ? ' <span class="mut" title="Profit if this order is delivered">if delivered</span>' : ''}</td></tr>`).join('')}</tbody></table>`
         : '<div class="empty">No orders in this range.</div>';
       el.querySelectorAll('select[data-id]').forEach(s => s.addEventListener('change', async () => {
         await api('/orders/' + encodeURIComponent(s.dataset.id), { method: 'PATCH', body: { status: s.value } }); load();
       }));
     };
-    $('#f-status').onchange = load; $('#f-risk').onchange = load; $('#f-q').oninput = load; load();
+    $('#f-status').onchange = load; $('#f-q').oninput = load; load();
+  },
+
+  async risk(el) {
+    const [all, pin, blocks] = await Promise.all([api('/risk?' + filterQuery(riskSel)), api('/pincode-status'), api('/blocklist')]);
+    const LV = { none: 0, low: 1, medium: 2, high: 3 };
+    const LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
+    const CONFIRM = [['', 'Not contacted'], ['confirmed', 'Confirmed'], ['unreachable', 'Not reachable'], ['refused', 'Refused']];
+    const tile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+    const open = all.filter(o => o.status === 'new' || o.status === 'shipped');
+    const toCheck = open.filter(o => LV[o.risk.level] >= 2 && o.confirm !== 'confirmed');
+
+    el.innerHTML = filterBar(riskSel, filterLabel(riskSel)) + `
+      <div class="kpis">
+        ${tile('Orders to check', toCheck.length, 'Placed or Shipped, medium or high risk, not yet confirmed', toCheck.length ? 'bad' : 'good')}
+        ${tile('High risk', all.filter(o => o.risk.level === 'high').length, `${all.filter(o => o.risk.level === 'medium').length} medium in this range`)}
+        ${tile('Confirmed by you', all.filter(o => o.confirm === 'confirmed').length, `${all.filter(o => o.confirm === 'unreachable' || o.confirm === 'refused').length} not reachable or refused`)}
+        ${tile('Blocked', blocks.length, 'Phones, addresses and names on your blocklist')}
+      </div>
+      <div class="card" style="margin-bottom:16px"><div class="form">
+        <label>Risk<select id="r-level"><option value="">All</option><option value="medium" ${riskFilter.level === 'medium' ? 'selected' : ''}>Medium and High</option><option value="high" ${riskFilter.level === 'high' ? 'selected' : ''}>High only</option></select></label>
+        <label>Confirmation<select id="r-conf"><option value="">All</option>${CONFIRM.map(([v, l]) => `<option value="${v || 'none'}" ${riskFilter.confirm === (v || 'none') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label>Search<input id="r-q" placeholder="Name, phone, address, pincode, IP" value="${esc(riskFilter.q)}"></label>
+        <span class="mut" id="r-count"></span></div>
+        <div class="mut" style="font-size:12px;margin:0 0 10px">${pin.loaded ? `Pincode check is on: orders are checked against ${pin.rows.toLocaleString('en-IN')} India Post offices.` : `<b>Pincode check is off.</b> The India Post directory is not loaded${pin.error ? ' (' + esc(pin.error) + ')' : ''}, so pincode, state and city are not being checked.`}</div>
+        <div class="scroll" id="r-table"></div>
+        <p class="mut" style="font-size:12px;margin:12px 0 0">Risk flags are hints for orders worth a call or WhatsApp confirmation before shipping. They are not proof of fraud: a flag can be a genuine repeat customer or a typing mistake. Mark each order after you call, and block customers who turn out to be fake.</p></div>
+      <div class="card" style="margin-top:16px"><h2>Blocklist</h2><div class="scroll">${blocks.length ? `<table><thead><tr><th>Type</th><th>Blocked</th><th>Note</th><th>Added</th><th></th></tr></thead><tbody>${blocks.map(b => `
+        <tr><td>${esc(b.kind)}</td><td>${esc(b.label || b.value)}</td><td class="mut" style="white-space:normal">${esc(b.note || '')}</td><td class="mut">${(b.created || '').slice(0, 10)}</td><td><button class="link" data-unblock="${b.id}">Unblock</button></td></tr>`).join('')}</tbody></table>`
+        : '<div class="empty">No one is blocked. Use Block on an order to add its phone and address here. Later orders that match are flagged.</div>'}</div></div>`;
+    bindFilterBar(el, sel => { riskSel = sel; render(); });
+    el.querySelectorAll('button[data-unblock]').forEach(b => b.onclick = async () => { await api('/blocklist/' + b.dataset.unblock, { method: 'DELETE' }); render(); });
+
+    const draw = () => {
+      riskFilter = { level: $('#r-level').value, confirm: $('#r-conf').value, q: $('#r-q').value };
+      const t = riskFilter.q.trim().toLowerCase();
+      const rows = all.filter(o => (!riskFilter.level || LV[o.risk.level] >= LV[riskFilter.level])
+        && (!riskFilter.confirm || (riskFilter.confirm === 'none' ? !o.confirm : o.confirm === riskFilter.confirm))
+        && (!t || [o.name, o.customer, o.phone, o.email, o.address, o.city, o.zip, o.province, o.ip].join(' ').toLowerCase().includes(t)));
+      $('#r-count').textContent = `${rows.length} of ${all.length} orders`;
+      $('#r-table').innerHTML = rows.length ? `<table><thead><tr><th>Order</th><th>Customer</th><th>Address</th><th>IP</th><th>Order</th><th>Risk</th><th>Confirmation</th><th></th></tr></thead><tbody>${rows.slice(0, 300).map(o => `
+        <tr style="vertical-align:top"><td>${esc(o.name)}<div class="mut" style="font-size:12px">${o.day}</div></td>
+        <td style="white-space:normal;min-width:170px"><b>${o.customer ? esc(o.customer) : '–'}</b><div>${o.phone ? esc(o.phone) : '<span class="mut">no phone</span>'}</div><div class="mut" style="font-size:12px">${o.email ? esc(o.email) : 'no email'}</div></td>
+        <td style="white-space:normal;min-width:220px">${o.address ? esc(o.address) : '<span class="mut">–</span>'}<div class="mut" style="font-size:12px">${esc(o.city)} ${o.zip ? esc(o.zip) : ''}${o.province ? ', ' + esc(o.province) : ''}</div></td>
+        <td class="mut" style="font-size:12px">${o.ip ? esc(o.ip) : '–'}</td>
+        <td>${o.payment.toUpperCase()} · ${inr(o.total)}<div><span class="pill ${o.status}">${STATUS_LABEL[o.status]}</span></div>${o.discount ? `<div class="mut" style="font-size:12px">Code ${esc(o.discount)}</div>` : ''}</td>
+        <td style="white-space:normal;min-width:240px">${o.risk.level !== 'none' ? `<span class="pill risk-${o.risk.level}">${LABEL[o.risk.level]}</span>` : '<span class="mut">No flags</span>'}
+          ${o.risk.flags.map(f => `<div class="mut" style="font-size:12px">${esc(f)}</div>`).join('')}${o.risk.good.map(f => `<div class="pos" style="font-size:12px">${esc(f)}</div>`).join('')}</td>
+        <td><select data-conf="${esc(o.id)}">${CONFIRM.map(([v, l]) => `<option value="${v}" ${(o.confirm || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+        <td><button data-block="${esc(o.id)}" title="Add this customer's phone and address to the blocklist">Block</button></td></tr>`).join('')}</tbody></table>`
+        : '<div class="empty">No orders match these filters.</div>';
+      el.querySelectorAll('select[data-conf]').forEach(s => s.onchange = async () => { await api('/risk/confirm', { method: 'POST', body: { id: s.dataset.conf, value: s.value } }); render(); });
+      el.querySelectorAll('button[data-block]').forEach(b => b.onclick = async () => { await api('/risk/block', { method: 'POST', body: { id: b.dataset.block } }); render(); });
+    };
+    $('#r-level').onchange = draw; $('#r-conf').onchange = draw; $('#r-q').oninput = draw; draw();
   },
 
   async ads(el) {
