@@ -1,0 +1,11 @@
+{
+  "name": "wellora-profit-desk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local dashboard for Indian dropshipping: Shopify orders, Meta ad spend, bank ledger and profit.",
+  "scripts": {
+    "start": "node --experimental-sqlite --no-warnings server.js"
+  },
+  "engines": { "node": ">=22.5" }
+}
