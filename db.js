@@ -18,7 +18,7 @@ export function loadEnv() {
 }
 loadEnv();
 
-export const db = new DatabaseSync(path.join(ROOT, 'data', 'dropship.db'));
+export const db = new DatabaseSync(process.env.DB_FILE || path.join(ROOT, 'data', 'dropship.db'));   // DB_FILE lets a test run use a copy
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS orders (
@@ -77,7 +77,58 @@ CREATE TABLE IF NOT EXISTS sync_log (
 
 try { db.exec('ALTER TABLE orders ADD COLUMN customer TEXT'); } catch { /* already there */ }
 // Customer details used by the Risk tab, and your confirmation outcome ('', confirmed, unreachable, refused)
-for (const c of ['zip', 'province', 'phone', 'email', 'address', 'ip', 'discount', 'confirm', 'fulfilled_at', 'courier', 'tracking_no', 'tracking_url', 'ship_status']) { try { db.exec(`ALTER TABLE orders ADD COLUMN ${c} TEXT`); } catch { /* already there */ } }
+for (const c of ['zip', 'province', 'phone', 'email', 'address', 'ip', 'discount', 'confirm', 'fulfilled_at', 'courier', 'tracking_no', 'tracking_url', 'ship_status', 'cancelled_at', 'cancel_reason', 'gross_items', 'discounts', 'refunds_json']) { try { db.exec(`ALTER TABLE orders ADD COLUMN ${c} TEXT`); } catch { /* already there */ } }
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_charges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day TEXT,
+  type TEXT,      -- RTO charge | Product cost | COD fee | Other charge
+  amount REAL,
+  orderRef TEXT,  -- optional order number
+  note TEXT,
+  created TEXT
+)`);
+// Numbers copied from the supplier's own Wallet page, with the date you copied them
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day TEXT,
+  balance REAL,       -- Current Balance
+  outstanding REAL,   -- Outstanding: COD collected minus logistics charges, owed to you but not in the wallet yet
+  payments REAL,      -- Payments Till Date
+  withdrawn REAL,     -- Withdrawn Till Date
+  note TEXT,
+  created TEXT
+)`);
+// Payout statements from the supplier (the CSV you upload) and the orders listed in them
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_statements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hash TEXT UNIQUE,      -- same file uploaded twice is ignored
+  name TEXT,
+  date TEXT,
+  base REAL,             -- base payout (negative = money taken from the wallet)
+  hold_current REAL,     -- amount held for open orders
+  hold_prev REAL,        -- hold before this statement
+  hold_diff REAL,
+  extra_hold REAL,
+  final REAL,            -- final adjusted payout: what this statement adds to (+) or takes from (-) the wallet
+  orders INTEGER,
+  created TEXT
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_orders (
+  order_name TEXT PRIMARY KEY,
+  supplier_order_id TEXT, created_at TEXT, status_date TEXT, qty INTEGER, product TEXT, sku TEXT, status TEXT,
+  amount REAL, cod_charges REAL, ds_margin REAL, rto_penalty REAL, rvp_penalty REAL,
+  customer TEXT, city TEXT, state TEXT, pin TEXT, statement_id INTEGER
+)`);
+// Live status of every order as read from the Dropship India seller panel (refreshed each time the panel is read)
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_panel (
+  order_name TEXT PRIMARY KEY,   -- Shopify order name, e.g. #W1001045
+  supplier_order_id TEXT, shopify_no TEXT, status TEXT, status_at TEXT, awb TEXT, risk TEXT, address TEXT, synced_at TEXT
+)`);
+// Wallet transactions as listed on the Dropship India Wallet page (recharges and daily payouts)
+db.exec(`CREATE TABLE IF NOT EXISTS supplier_wallet_txns (
+  at TEXT, kind TEXT, description TEXT, status TEXT, amount REAL, synced_at TEXT,
+  PRIMARY KEY (at, description, amount)
+)`);
 db.exec(`CREATE TABLE IF NOT EXISTS blocklist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   kind TEXT,      -- phone | address | name
@@ -100,11 +151,15 @@ export const DEFAULTS = {
   return_ship: 70,
   pack: 15,
   cod_fee: 30,
+  cod_fee_pct: 0,        // COD charge as a percent of the order amount (Dropship India charges 1%), added to the fixed COD fee
   gateway_pct: 2,
   platform_pct: 0,
   ad_gst: 18,            // GST Meta adds on top of ad spend (set 0 if you claim it back as input credit)
   fixed_monthly: 3000,
   opening_balance: 0,
+  supplier_auto_rto: 0,      // 1 = also take the RTO charge off automatically for every order marked RTO (0 = only the charges you enter)
+  supplier_rto_charge: 70,   // what the supplier takes from your wallet for each RTO (returned) order
+  supplier_adjust: 0,        // other supplier wallet changes you want counted (add or subtract), e.g. to match the supplier panel
   meta_opening_balance: 0, // money already sitting in your Meta ad account before you started tracking recharges
   expected_rto: 25       // no longer used (kept so older saved settings still load)
 };
@@ -127,3 +182,7 @@ export function setSettings(obj) {
 export const istDay = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 export const todayIST = () => istDay(Date.now());
 export const daysAgo = n => istDay(Date.now() - n * 864e5);
+
+// An order the supplier will never ship (cancelled, not to be fulfilled, failed to sync) counts as cancelled in profit, order counts and tracking.
+// Shopify's own Sales report is not changed by this: it still follows Shopify's refunds.
+export const EFF_STATUS = `CASE WHEN o.status IN ('new','shipped') AND p.status IN ('NOT_TO_BE_FULFILLED','CANCELLED_BY_DROPSHIPPER','CANCELLED_BY_CUSTOMER','FAILED_TO_SYNC') THEN 'cancelled' ELSE o.status END`;

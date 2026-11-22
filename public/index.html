@@ -105,6 +105,7 @@ td select{height:30px;padding:0 8px;font-size:13px;border-radius:8px}
 .sect:first-child{margin-top:0}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:0}
 .kpis.k2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .kpi{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow);min-width:0;overflow:hidden}
 .kpi .k{font-size:13px;color:var(--muted);font-weight:500}
 .kpi .v{font:700 28px/1.1 var(--body);margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.04em;overflow-wrap:anywhere}
@@ -148,6 +149,8 @@ td.r,th.r{text-align:right}
 .pill.shipped,.pill.new{background:var(--warn-bg);color:var(--warn);border-color:transparent}
 .pill.cancelled{color:var(--muted)}
 .pill.st-awaiting{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.st-ofd{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good);border-color:transparent}
+.pill.st-undel{background:var(--warn-bg);color:var(--bad);border-color:transparent}
 .pill.st-transit{background:var(--accent-soft);color:var(--accent);border-color:transparent}
 .pill.st-delivered{background:var(--good-bg);color:var(--good);border-color:transparent}
 .pill.st-rto{background:var(--bad-bg);color:var(--bad);border-color:transparent}
@@ -172,7 +175,7 @@ a.trk:hover{text-decoration:underline}
 iframe{display:block;width:100%;height:calc(100vh - 160px);min-height:800px;border:1px solid var(--line);border-radius:16px;background:transparent}
 code{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12.5px}
 
-@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.three{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1100px){.kpis,.kpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.three{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){
   .app{grid-template-columns:minmax(0,1fr)}
   .side{position:sticky;top:0;z-index:20;height:auto;flex-direction:row;align-items:center;gap:6px;padding:10px 12px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden}
@@ -183,7 +186,7 @@ code{background:var(--field);border:1px solid var(--line);border-radius:6px;padd
   .page-head h1{font-size:26px}
   .showing{margin-left:0;width:100%}
 }
-@media (max-width:640px){.kpis,.kpis.k2{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:minmax(0,1fr)}.kpi.big .v{font-size:36px}}
+@media (max-width:640px){.kpis,.kpis.k2,.kpis.k3{grid-template-columns:minmax(0,1fr)}.fields{grid-template-columns:minmax(0,1fr)}.kpi.big .v{font-size:36px}}
 </style>
 </head>
 <body>
@@ -195,12 +198,14 @@ code{background:var(--field);border:1px solid var(--line);border-radius:6px;padd
       <div class="grp">Sales</div>
       <a href="#orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l1 13H5L6 7z"/><path d="M9 7a3 3 0 016 0"/></svg>Orders</a>
       <a href="#tracking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg>Live tracking</a>
+      <a href="#products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9"/></svg>Products</a>
       <a href="#risk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>Risk check</a>
       <div class="grp">Marketing</div>
       <a href="#ads"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l7 4V6L7 10H4z"/><path d="M17.5 9a4 4 0 010 6"/></svg>Ad spend</a>
       <a href="#meta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Meta Ads</a>
       <div class="grp">Money</div>
       <a href="#bank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bank</a>
+      <a href="#supplier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Supplier</a>
       <div class="grp">Tools</div>
       <a href="#calculator"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg>Calculator</a>
       <a href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</a>
@@ -218,6 +223,7 @@ code{background:var(--field);border:1px solid var(--line);border-radius:6px;padd
       <div><h1 id="ptitle">Overview</h1><p id="psub"></p></div>
       <div class="ctrl">
         <span class="sync-note" id="syncnote"></span>
+        <select id="prod" aria-label="Product" title="Show one product or all products"></select>
         <select id="range" aria-label="Date range">
           <option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option>
           <option value="90">Last 90 days</option><option value="0">All time</option>
@@ -234,7 +240,11 @@ const $ = (s, r = document) => r.querySelector(s);
 const inr = (n, d = 0) => (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: d, minimumFractionDigits: d });
 const cls = n => (n > 0.5 ? 'pos' : n < -0.5 ? 'neg' : 'mut');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let curProduct = ''; try { curProduct = localStorage.getItem('pd_product') || ''; } catch { /* no storage */ }
+const SCOPED = /^\/(summary|orders|tracking|risk|meta|ads)(\?|$)/;   // these tabs follow the product chosen in the header
+const withProduct = path => curProduct && SCOPED.test(path) ? path + (path.includes('?') ? '&' : '?') + 'product=' + encodeURIComponent(curProduct) : path;
 const api = async (path, opts = {}) => {
+  if (!opts.method || opts.method === 'GET') path = withProduct(path);
   const r = await fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
   return r.json();
 };
@@ -247,6 +257,8 @@ let ordSel = { p: '30' };    // Orders tab date filter
 let bankSel = { p: '30' };   // Bank tab date filter
 let riskSel = { p: '30' };   // Risk tab date filter
 let riskFilter = { level: 'medium', confirm: '', q: '' };   // Risk tab: shows Medium and High risk by default
+let supMsg = null;             // result of the last supplier file upload, shown after the page redraws
+let prodSel = { p: '30' };      // Products tab date filter
 let trkSel = { p: '30' };      // Live tracking date filter
 let trkFilter = { stage: '', q: '' };   // Live tracking stage chip and search
 let ordFilter = { q: '' };   // Orders tab search text, kept when the date filter changes // Orders tab status and search, kept when the date filter changes
@@ -437,6 +449,8 @@ const views = {
     let run = 0; const netSeries = d.daily.map(x => (run += x.gross - x.ads - x.adGst));
     const empty = !k.orders && !status.syncs.length;
     const inTransit = d.counts.new + d.counts.shipped;
+    const ss = d.shopifySales;
+    const REASON = { customer: 'Customer changed mind', fraud: 'Fraud', inventory: 'Out of stock', declined: 'Payment declined', other: 'Other', return: 'Return' };
     const costsNote = `ads ${inr(k.adSpend)}, ad GST ${inr(k.adGst)}${k.fixed ? ' and fixed costs ' + inr(k.fixed) : ''}`;
     el.innerHTML = filterBar(ovSel, rangeLabel) + `
       ${empty ? `<div class="banner"><span>No data yet. Connect Shopify and Meta in <a href="#settings">Settings</a>, or load sample data to look around.</span><button id="demo">Load sample data</button></div>` : ''}
@@ -449,18 +463,37 @@ const views = {
           `Only orders with a final outcome: ${k.delivered} delivered, ${k.rto} returned (gross ${inr(k.gross)}). After ${costsNote}.`,
           'big ' + (k.net >= 0 ? 'good' : 'bad'), spark(netSeries, k.net >= 0 ? 'var(--good)' : 'var(--bad)'))}
       </div>
-      <div class="sect">Sales</div>
+      <div class="sect">Sales, the way Shopify's Sales report counts them</div>
+      <div class="kpis">
+        ${tile('Gross sales', inr(ss.gross), `${ss.grossOrders} orders placed. Products before discounts, counted on the day each order was placed`)}
+        ${tile('Discounts', '-' + inr(ss.discounts), 'Taken off on the day the order was placed')}
+        ${tile('Returns', '-' + inr(ss.returns), `${ss.returnOrders} refund${ss.returnOrders === 1 ? '' : 's'} made in this period (cancelled or returned orders)${ss.returnsFromEarlier ? ', ' + ss.returnsFromEarlier + ' for orders placed before it' : ''}. Taken off on the day the refund was made`, ss.returns ? 'bad' : '')}
+        ${tile('Total sales', inr(ss.net), 'Gross sales minus discounts minus returns. Matches Total sales in Shopify Analytics', 'good', spark([...ss.byDay].reverse().map(x => x.net)))}
+      </div>
+      ${ss.noRefund.orders ? `<div class="banner" style="margin-top:18px"><span><b>${ss.noRefund.orders} cancelled order${ss.noRefund.orders === 1 ? '' : 's'} (${inr(ss.noRefund.value)}) ${ss.noRefund.orders === 1 ? 'has' : 'have'} no refund recorded in Shopify.</b> Shopify's Sales report only takes cancellations off through refunds, so these still count as sales here too.</span></div>` : ''}
+      <details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Day by day <span class="mut" style="font-weight:400;font-size:13px">· show the table</span></summary>
+        <p class="mut" style="margin:10px 0 14px;font-size:13px">An order counts on the day it was placed. If it is cancelled or returned later, the refund is taken off on the day it was made, so an earlier day never changes.</p>
+        <div class="scroll"><table><thead><tr><th>Date</th><th class="r">Orders placed</th><th class="r">Gross sales</th><th class="r">Discounts</th><th class="r">Returns that day</th><th class="r">Total sales</th></tr></thead><tbody>${ss.byDay.slice(0, 120).map(x => `
+          <tr><td>${x.day}</td><td class="r">${x.placed}</td><td class="r">${inr(x.gross)}</td><td class="r ${x.discounts ? 'neg' : 'mut'}">${x.discounts ? '-' + inr(x.discounts) : '–'}</td>
+          <td class="r ${x.returns ? 'neg' : 'mut'}">${x.returns ? '-' + inr(x.returns) + ' <span class="mut">(' + x.returnOrders + ' refund' + (x.returnOrders === 1 ? '' : 's') + ')</span>' : '–'}</td>
+          <td class="r"><b>${inr(x.net)}</b></td></tr>`).join('')}</tbody></table></div></details>
+      ${ss.returnOrders ? `<details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Cancelled and returned orders <span class="mut" style="font-weight:400;font-size:13px">· ${ss.returnOrders} refunds, show the list</span></summary>
+        <div class="legend" style="margin:12px 0">${Object.entries(ss.byReason).map(([k, v]) => `<span><b style="color:var(--fg)">${REASON[k] || k}</b> ${v.orders} · ${inr(v.value)}</span>`).join('')}</div>
+        <div class="scroll"><table><thead><tr><th>Order</th><th>Placed on</th><th>Refunded on</th><th>Reason</th><th class="r">Amount</th></tr></thead><tbody>${ss.list.map(o => `
+          <tr><td>${esc(o.name)}</td><td>${o.placedDay}</td><td>${o.refundDay}${o.placedDay !== o.refundDay ? ' <span class="mut">(later)</span>' : ''}</td>
+          <td><span class="pill ${o.reason === 'fraud' ? 'risk-high' : 'cancelled'}">${REASON[o.reason] || o.reason}</span></td><td class="r">${inr(o.total)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+      <div class="sect">Product sales by outcome (separate from the Shopify report above)</div>
       <div class="kpis k2">
         ${tile('Product sales if all orders are delivered', inr(k.salesIfDelivered),
-          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out.`, 'mid', spark(d.daily.map(x => x.salesProj || 0)))}
+          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out of the day they were placed.`, 'mid', spark(d.daily.map(x => x.salesProj || 0)))}
         ${tile('Product sales after delivery and RTO', inr(k.salesDelivered),
           `Only the ${d.counts.delivered} delivered orders. ${d.counts.rto} returned orders (${inr(k.rtoValue)}) are not counted.`, 'mid')}
       </div>
       <div class="sect">Orders, ads and cash</div>
       <div class="kpis">
         ${tile('Ad spend', inr(k.adSpend),`+ ${inr(k.adGst)} GST · ROAS ${k.roas ? k.roas.toFixed(2) + 'x' : 'n/a'} · CPA ${inr(k.cpa)}`, '', spark(d.daily.map(x => x.ads)))}
-        ${tile('Bank balance', inr(k.bankBalance), `In ${inr(k.bankIn)} · Out ${inr(k.bankOut)} this period`)}
-        ${tile('Orders', k.orders.toLocaleString('en-IN'), `All orders, including ${d.counts.cancelled} cancelled. Sales ${inr(k.sales)} · ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'profit per order appears once orders are Delivered or RTO'), '', spark(d.daily.map(x => x.orders)))}
+        ${curProduct ? '' : tile('Bank balance', inr(k.bankBalance), `In ${inr(k.bankIn)} · Out ${inr(k.bankOut)} this period`)}
+        ${tile('Orders', k.orders.toLocaleString('en-IN'), `Including ${d.counts.cancelled} cancelled. ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'Profit per order appears once orders are Delivered or RTO'), '', spark(d.daily.map(x => x.orders)))}
         ${tile('RTO rate', k.rtoRate.toFixed(1) + '%', `${k.rto} returned of ${k.delivered + k.rto} settled`, k.rtoRate > 30 ? 'bad' : '')}
       </div>
       <div class="sect">Trends and breakdown</div>
@@ -477,14 +510,14 @@ const views = {
         <div class="card"><h2>Order status</h2>
           <table><thead><tr><th>Status</th><th class="r">Orders</th><th class="r">Share</th><th class="r">Order value</th></tr></thead><tbody>
           ${STATUSES.map(s => `<tr><td><span class="pill ${s}">${STATUS_LABEL[s]}</span></td><td class="r"><b>${d.counts[s] || 0}</b></td>
-            <td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>`).join('')}
+            <td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>${s === 'shipped' && d.counts.shipped ? [['In transit', d.shipDetail.in_transit], ['Out for delivery', d.shipDetail.out_for_delivery], ['Undelivered (courier could not deliver)', d.shipDetail.undelivered]].map(([l, n]) => `<tr class="mut"><td style="padding-left:28px;font-size:13px">${l}</td><td class="r" style="font-size:13px">${n}</td><td></td><td></td></tr>`).join('') : ''}`).join('')}
           <tr style="font-weight:600"><td>All orders</td><td class="r">${k.orders}</td><td class="r mut">100%</td><td class="r">${inr(Object.values(d.statusValue).reduce((a, v) => a + v, 0))}</td></tr></tbody></table>
           <div class="mut" style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--fg)">By payment</div>
           <table><tbody><tr><td>COD</td><td class="r">${d.byPayment.cod || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.cod || 0) / k.orders * 100) : 0}%</td></tr>
             <tr><td>Prepaid</td><td class="r">${d.byPayment.prepaid || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.prepaid || 0) / k.orders * 100) : 0}%</td></tr></tbody></table></div>
       </div>
-      <div class="sect">Cash</div>
-      <div class="three">
+      ${curProduct ? '<p class="mut" style="font-size:12.5px;margin-top:22px">Bank and supplier wallet are shared by all products, so they show under All products only.</p>' : '<div class="sect">Cash</div>'}
+      <div class="three"${curProduct ? ' hidden' : ''}>
         <div class="card"><h2>Bank movement by category</h2>${d.bankByCategory.length ? `<table><tbody>${d.bankByCategory.map(b =>
           `<tr><td>${esc(b.category)}</td><td class="r ${b.type === 'in' ? 'pos' : 'neg'}">${b.type === 'in' ? '+' : '-'}${inr(b.amt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No bank entries yet.</div>'}</div>
         <div class="card"><h2>Orders vs bank</h2><table><tbody>
@@ -527,27 +560,197 @@ const views = {
     $('#f-q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 200); });
     $('#o-export').onclick = () => {   // exports exactly the rows shown
       const a = document.createElement('a');
-      a.href = '/api/orders/export?' + query();
+      a.href = withProduct('/orders/export?' + query()).replace(/^/, '/api');
       document.body.appendChild(a); a.click(); a.remove();
     };
     load();
+  },
+
+  async supplier(el) {
+    const [sup, charges, stmts, sorders, cfg, snaps, wtx] = await Promise.all([api('/supplier-wallet'), api('/supplier-charges'), api('/supplier/statements'), api('/supplier/orders'), api('/settings'), api('/supplier-snapshots'), api('/supplier/wallet-txns')]);
+    const tile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
+    const signed = (n, d = 0) => (n < 0 ? '-' : n > 0 ? '+' : '') + inr(Math.abs(n), d);
+    const CHARGE_TYPES = ['RTO charge', 'Product cost', 'COD fee', 'Other charge'];
+    const lat = sup.latestStatement;
+
+    // what the supplier's own numbers say about the amounts in Settings
+    const pen = sorders.filter(o => o.rto_penalty + o.rvp_penalty > 0);
+    const avgPen = pen.length ? pen.reduce((a, o) => a + o.rto_penalty + o.rvp_penalty, 0) / pen.length : null;
+    const price = sorders.length ? sorders.reduce((a, o) => a + (o.amount - o.ds_margin) / Math.max(1, o.qty), 0) / sorders.length : null;
+    const tips = [];
+    if (avgPen && (Math.round(avgPen) !== Math.round(cfg.supplier_rto_charge) || Math.round(avgPen) !== Math.round(cfg.return_ship))) tips.push({ key: 'rto', text: `The supplier charges <b>${inr(avgPen)}</b> per returned order. Settings has ${inr(cfg.return_ship)} for the return courier and ${inr(cfg.supplier_rto_charge)} as the supplier's RTO charge.`, button: `Use ${inr(avgPen)} for both` });
+    if (price && Math.round(price) !== Math.round(cfg.default_cost)) tips.push({ key: 'cost', text: `The supplier's price works out to <b>${inr(price)}</b> a unit (order amount minus their margin). Settings has <b>${inr(cfg.default_cost)}</b> as the product cost. Change it in Settings if the difference is not a fee you pay separately.` });
+
+    el.innerHTML = `
+      <div class="kpis">
+        ${tile('Added to wallet', inr(sup.added), `${sup.entries} recharge${sup.entries === 1 ? '' : 's'}${sup.last ? ', last on ' + sup.last : ''}. Entered on the Bank tab`)}
+        ${tile('Payout statements', signed(sup.statementsNet), sup.statementsCount ? `${sup.statementsCount} statement${sup.statementsCount === 1 ? '' : 's'}${lat ? '. ' + inr(lat.hold_current) + ' held for open orders' : ''}` : 'Upload the supplier\'s payout file below', sup.statementsNet < 0 ? 'bad' : '')}
+        ${tile('Charges you entered', '-' + inr(sup.manualCharges), `${sup.manualCount} charge${sup.manualCount === 1 ? '' : 's'}`, sup.manualCharges ? 'bad' : '')}
+        ${tile('Wallet balance', inr(sup.balance), sup.balance < 0 ? 'Negative: top up the wallet' : 'Added, plus statements, minus charges' + (sup.autoOn && sup.rtoCharges ? ', minus ' + inr(sup.rtoCharges) + ' automatic RTO charges' : '') + (sup.adjust ? ', ' + signed(sup.adjust, 2) + ' adjustment to match the supplier' : ''), sup.balance < 0 ? 'bad' : 'good')}
+      </div>
+
+      <div class="card" style="margin-top:22px"><h2>The supplier's own Wallet page</h2>
+        <p class="mut" style="margin:-6px 0 14px;font-size:13px">Copy the numbers from the supplier's Wallet page to see what they owe you and to check that your wallet matches theirs. <b>Outstanding</b> is COD the couriers collected, minus logistics charges. It is yours, but it is not in the wallet until the supplier pays it out.</p>
+        ${snaps.length ? (() => {
+          const sn = snaps[0], diff = sn.balance === null ? null : sup.balance - sn.balance;
+          const match = diff !== null && Math.abs(diff) < 0.5;
+          return `<div class="kpis" style="margin-bottom:14px">
+            ${tile('Supplier shows: current balance', sn.balance === null ? '–' : inr(sn.balance, 2), `Copied on ${sn.day}`)}
+            ${tile('Outstanding: owed to you', sn.outstanding === null ? '–' : inr(sn.outstanding, 2), 'COD collected minus logistics charges. Not in the wallet yet', sn.outstanding ? 'good' : '')}
+            ${tile('Withdrawn till date', sn.withdrawn === null ? '–' : inr(sn.withdrawn, 2), sn.payments === null ? '' : 'Payments till date ' + inr(sn.payments, 2))}
+            ${tile('Our wallet vs theirs', diff === null ? '–' : match ? 'Matches' : signed(diff, 2), diff === null ? 'No balance copied' : match ? 'The dashboard wallet is the same as the supplier\'s' : `Dashboard ${inr(sup.balance, 2)}, supplier ${inr(sn.balance, 2)}`, diff === null ? '' : match ? 'good' : 'bad')}
+          </div>
+          ${diff !== null && !match ? `<div class="banner" style="margin-bottom:14px"><span>The wallet here is <b>${inr(Math.abs(diff), 2)} ${diff > 0 ? 'higher' : 'lower'}</b> than the supplier's. Check for a missing recharge, payout statement or charge. If you know the reason is something else, you can make the wallet match.</span><button data-match="${(cfg.supplier_adjust || 0) - diff}">Match the wallet to the supplier</button></div>` : ''}
+          ${sn.withdrawn !== null && Math.abs(sn.withdrawn - sup.received) > 0.5 ? `<p class="mut" style="font-size:12.5px;margin:0 0 14px">The supplier shows ${inr(sn.withdrawn, 2)} withdrawn, and ${inr(sup.received, 2)} is recorded as received on the Bank tab (Money in, category <b>Supplier payout</b>). Record each withdrawal there when it reaches your bank.</p>` : ''}`;
+        })() : ''}
+        ${wtx.length ? `<details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:600">Wallet activity from Dropship India <span class="mut" style="font-weight:400;font-size:13px">· ${wtx.length} entries: recharges ${inr(wtx.filter(t => t.kind === 'recharge').reduce((a, t) => a + t.amount, 0))}, daily payouts ${inr(wtx.filter(t => t.kind === 'payout').reduce((a, t) => a + t.amount, 0))}</span></summary>
+          <div class="scroll"><table><thead><tr><th>Date</th><th>What</th><th>Status</th><th class="r">Amount</th></tr></thead><tbody>${wtx.map(t => `<tr><td>${when(t.at)}</td><td>${esc(t.description)}</td><td>${esc(t.status)}</td><td class="r ${t.kind === 'recharge' ? 'pos' : 'neg'}">${t.kind === 'recharge' ? '+' : '-'}${inr(t.amount)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+        <form class="form" id="snapform">
+          <label>Date<input type="date" id="sn-day" value="${today()}"></label>
+          <label>Current balance (₹)<input id="sn-bal" type="number" step="any"></label>
+          <label>Outstanding (₹)<input id="sn-out" type="number" step="any"></label>
+          <label>Payments till date (₹)<input id="sn-pay" type="number" step="any"></label>
+          <label>Withdrawn till date (₹)<input id="sn-wd" type="number" step="any"></label>
+          <button class="primary">Save these numbers</button>
+        </form>
+        ${snaps.length > 1 ? `<div class="scroll"><table><thead><tr><th>Date</th><th class="r">Current balance</th><th class="r">Outstanding</th><th class="r">Payments</th><th class="r">Withdrawn</th><th></th></tr></thead><tbody>${snaps.map(x => `
+          <tr><td>${x.day}</td><td class="r">${x.balance === null ? '–' : inr(x.balance, 2)}</td><td class="r">${x.outstanding === null ? '–' : inr(x.outstanding, 2)}</td><td class="r">${x.payments === null ? '–' : inr(x.payments, 2)}</td><td class="r">${x.withdrawn === null ? '–' : inr(x.withdrawn, 2)}</td><td><button class="link" data-snapdel="${x.id}">Delete</button></td></tr>`).join('')}</tbody></table></div>` : snaps.length ? `<p class="mut" style="font-size:12.5px;margin:0"><button class="link" data-snapdel="${snaps[0].id}" style="color:var(--muted)">Delete this entry</button></p>` : ''}
+      </div>
+
+      <div class="card" style="margin-top:22px"><h2>Payout statement from Dropship India</h2>
+        <p class="mut" style="margin:-6px 0 14px;font-size:13px">Upload the payout CSV the supplier sends. Orders it lists as <b>RTO</b> or <b>delivered</b> are marked that way in the dashboard, and the <b>final adjusted payout</b> is added to or taken from the wallet. Uploading the same file twice changes nothing.</p>
+        <div class="form" style="margin-bottom:10px"><input type="file" id="sup-file" accept=".csv,text/csv,.txt"><span id="sup-msg"></span></div>
+        ${stmts.length ? `<div class="scroll"><table><thead><tr><th>Statement date</th><th>File</th><th class="r">Orders</th><th class="r">Base payout</th><th class="r">Extra hold</th><th class="r">Final adjusted payout</th><th></th></tr></thead><tbody>${stmts.map(t => `
+          <tr><td>${t.date}</td><td class="mut">${esc(t.name)}</td><td class="r">${t.orders}</td><td class="r">${signed(t.base, 2)}</td><td class="r">${signed(-t.extra_hold, 2)}</td><td class="r ${cls(t.final)}"><b>${signed(t.final, 2)}</b></td>
+          <td><button class="link" data-sdel-stmt="${t.id}" title="Remove this statement from the wallet. Order statuses it set stay as they are">Delete</button></td></tr>`).join('')}</tbody></table></div>`
+          : '<div class="empty" style="padding:22px">No statements yet.</div>'}
+        ${lat ? `<p class="mut" style="font-size:12.5px;margin:12px 0 0">Latest statement (${lat.date}): ${inr(lat.hold_current)} is held for open orders, up from ${inr(lat.hold_prev)}. The ${inr(lat.hold_current - lat.hold_prev)} increase is part of the final payout. A hold of ${inr(lat.hold_prev)} was already in place before this statement, so it is not in the wallet figure here. Add it as a charge below if your wallet should count it.</p>` : ''}
+      </div>
+      ${tips.map(t => `<div class="banner" style="margin-top:18px"><span>${t.text}</span>${t.button ? `<button data-tip="${t.key}" data-val="${Math.round(avgPen)}">${t.button}</button>` : ''}</div>`).join('')}
+
+      ${sorders.length ? `<div class="card" style="margin-top:22px"><h2>Orders in the statements</h2>
+        <div class="form"><label style="flex:1;min-width:240px">Search<input id="sup-q" type="search" placeholder="Order, product, state, status…" autocomplete="off" style="width:100%"></label><span class="mut" id="sup-count"></span></div>
+        <div class="scroll"><table><thead><tr><th>Order</th><th>Status date</th><th>Product</th><th>Supplier status</th><th>Dashboard shows</th><th class="r">Order amount</th><th class="r">Your margin</th><th class="r">Penalty</th><th>State</th></tr></thead><tbody id="sup-body"></tbody></table></div></div>` : ''}
+
+      <div class="card" style="margin-top:22px"><h2>Charges you enter by hand</h2>
+        <form class="form" id="sform">
+          <label>Date<input type="date" id="s-day" value="${today()}"></label>
+          <label>Charge<select id="s-type">${CHARGE_TYPES.map(t => `<option>${t}</option>`).join('')}</select></label>
+          <label>Amount (₹)<input id="s-amt" type="number" min="0.01" step="any" required></label>
+          <label>Order (optional)<input id="s-order" placeholder="e.g. #W1001040" style="min-width:140px"></label>
+          <label>Note<input id="s-note" placeholder="Optional"></label>
+          <button class="primary">Add charge</button>
+        </form>
+        ${charges.length ? `<div class="scroll" style="max-height:300px;overflow-y:auto"><table><thead><tr><th>Date</th><th>Charge</th><th>Order</th><th>Note</th><th class="r">Amount</th><th></th></tr></thead><tbody>${charges.map(c => `
+          <tr><td>${c.day}</td><td>${esc(c.type)}</td><td>${c.orderRef ? esc(c.orderRef) : '<span class="mut">–</span>'}</td><td class="mut">${esc(c.note || '')}</td><td class="r neg">-${inr(c.amount, 2)}</td><td><button class="link" data-sdel="${c.id}">Delete</button></td></tr>`).join('')}</tbody></table></div>`
+          : '<div class="mut" style="font-size:13px">No charges yet. Use this for anything the supplier takes that is not in a payout file.</div>'}
+        <p class="mut" style="font-size:12px;margin:12px 0 0">Charges the payout file already covers (like RTO penalties) should not be entered again here.</p>
+      </div>`;
+
+    $('#snapform').onsubmit = async e => {
+      e.preventDefault();
+      const r = await api('/supplier-snapshots', { method: 'POST', body: { day: $('#sn-day').value, balance: $('#sn-bal').value, outstanding: $('#sn-out').value, payments: $('#sn-pay').value, withdrawn: $('#sn-wd').value } });
+      render();
+    };
+    el.querySelectorAll('button[data-snapdel]').forEach(b => b.onclick = async () => { await api('/supplier-snapshots/' + b.dataset.snapdel, { method: 'DELETE' }); render(); });
+    el.querySelectorAll('button[data-match]').forEach(b => b.onclick = async () => { await api('/settings', { method: 'PUT', body: { supplier_adjust: Number(b.dataset.match).toFixed(2) } }); render(); });
+
+    // upload
+    const showMsg = m => {
+      const box = $('#sup-msg'); if (!box || !m) return;
+      if (!m.ok) { box.className = 'neg'; box.textContent = m.error || 'The file could not be read.'; return; }
+      box.className = m.duplicate ? 'mut' : 'pos';
+      if (m.duplicate) { box.textContent = m.message; return; }
+      const parts = [`Imported ${m.orders} order${m.orders === 1 ? '' : 's'} (${Object.entries(m.byStatus).map(([k, v]) => v + ' ' + k).join(', ')}).`];
+      const marked = Object.entries(m.marked).filter(([, v]) => v).map(([k, v]) => `${v} as ${k === 'rto' ? 'RTO' : k}`);
+      parts.push(marked.length ? `Marked in the dashboard: ${marked.join(', ')}.` : 'No order statuses needed changing.');
+      if (m.alreadyCorrect) parts.push(`${m.alreadyCorrect} already had that status.`);
+      parts.push(`Payout ${signed(m.summary.final, 2)} added to the wallet.`);
+      if (m.notFound.length) parts.push(`Not found in the dashboard: ${m.notFound.join(', ')}.`);
+      if (m.unknownStatuses.length) parts.push(`Statuses I did not act on: ${m.unknownStatuses.join(', ')}.`);
+      box.textContent = parts.join(' ');
+    };
+    showMsg(supMsg);
+    $('#sup-file').onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      const box = $('#sup-msg'); box.className = 'mut'; box.textContent = 'Reading…';
+      supMsg = await api('/supplier/import', { method: 'POST', body: { name: f.name, text: await f.text() } });
+      render();
+    };
+    el.querySelectorAll('button[data-sdel-stmt]').forEach(b => b.onclick = async () => { supMsg = null; await api('/supplier/statements/' + b.dataset.sdelStmt, { method: 'DELETE' }); render(); });
+    el.querySelectorAll('button[data-tip]').forEach(b => b.onclick = async () => { await api('/settings', { method: 'PUT', body: { supplier_rto_charge: b.dataset.val, return_ship: b.dataset.val } }); render(); });
+
+    // orders table with search
+    const draw = () => {
+      const body = $('#sup-body'); if (!body) return;
+      const t = ($('#sup-q').value || '').toLowerCase().split(/\s+/).filter(Boolean);
+      const rows = sorders.filter(o => t.every(w => [o.order_name, o.product, o.state, o.status, o.dashboard_status ? STATUS_LABEL[o.dashboard_status] : 'not found'].join(' ').toLowerCase().includes(w)));
+      $('#sup-count').textContent = rows.length + ' orders';
+      const cls2 = st => /rto|rvp|return/i.test(st) ? 'rto' : /deliver/i.test(st) ? 'delivered' : 'cancelled';
+      body.innerHTML = rows.map(o => `<tr><td>${esc(o.order_name)}</td><td>${(o.status_date || '').slice(0, 10)}</td><td>${esc(o.product)}</td><td><span class="pill ${cls2(o.status)}">${esc(o.status)}</span></td>
+        <td>${o.dashboard_status ? `<span class="pill ${o.dashboard_status}">${STATUS_LABEL[o.dashboard_status]}</span>` : '<span class="mut">Not in dashboard</span>'}</td>
+        <td class="r">${inr(o.amount)}</td><td class="r">${inr(o.ds_margin)}</td><td class="r ${o.rto_penalty + o.rvp_penalty ? 'neg' : 'mut'}">${o.rto_penalty + o.rvp_penalty ? '-' + inr(o.rto_penalty + o.rvp_penalty) : '–'}</td><td>${esc(o.state || '')}</td></tr>`).join('');
+    };
+    if ($('#sup-q')) { $('#sup-q').addEventListener('input', draw); draw(); }
+
+    // charges you enter
+    $('#sform').onsubmit = async e => {
+      e.preventDefault();
+      await api('/supplier-charges', { method: 'POST', body: { day: $('#s-day').value, type: $('#s-type').value, amount: $('#s-amt').value, orderRef: $('#s-order').value, note: $('#s-note').value } });
+      render();
+    };
+    el.querySelectorAll('button[data-sdel]').forEach(b => b.onclick = async () => { await api('/supplier-charges/' + b.dataset.sdel, { method: 'DELETE' }); render(); });
+  },
+
+  async products(el) {
+    const d = await api('/products-tracker?' + filterQuery(prodSel));
+    const t = d.total, cfg = d.config, un = d.rows.find(r => r.name === 'Unassigned');
+    const m = (l, v, c = '') => `<div class="kpi ${c}"><div class="k">${l}</div><div class="v">${v}</div></div>`;
+    const card = r => `<div class="card" style="margin-top:18px;${r.name === 'Unassigned' ? 'border-left:4px solid var(--bad)' : ''}"><h2>${esc(r.name)} <span class="mut" style="font-weight:400;font-size:13px">· ${r.orders} orders, ${r.cancelled} cancelled</span></h2>
+      <div class="kpis" style="margin:12px 0">
+        ${m('Delivered', r.delivered)}${m('Returned (RTO)', r.rto)}${m('On the way', r.transit)}${m('RTO rate', r.rtoRate === null ? '–' : r.rtoRate.toFixed(0) + '%', r.rtoRate > 30 ? 'bad' : '')}
+        ${m('Sales (not cancelled)', inr(r.sales))}${m('Ad spend + GST', inr(r.adTotal))}${m('Cost per order', r.cpa === null ? '–' : inr(r.cpa))}${m('ROAS', r.roas === null ? '–' : r.roas.toFixed(1) + 'x')}
+        ${m('Net profit so far', inr(r.net), r.net >= 0 ? 'good' : 'bad')}${m('Net if all on the way are delivered', inr(r.netIfDelivered), r.netIfDelivered >= 0 ? 'good' : 'bad')}
+      </div>
+      ${r.campaigns.length ? `<table><thead><tr><th>Ad campaign</th><th class="r">Spend (before GST)</th></tr></thead><tbody>${r.campaigns.map(c => `<tr><td>${esc(c.campaign)}</td><td class="r">${inr(c.spend)}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${r.name === 'Unassigned' ? `<p class="mut" style="margin:10px 0 0">${r.titles.length ? 'Orders with no product match: ' + r.titles.map(x => esc(x.title) + ' (' + x.orders + ')').join(', ') + '. ' : ''}Add a keyword for these under "Products and keywords" below to move them to a product.</p>` : ''}</div>`;
+    el.innerHTML = filterBar(prodSel, filterLabel(prodSel)) + `
+      <div class="sect">All products</div>
+      <div class="kpis">${m('Orders', t.orders)}${m('Delivered / RTO', t.delivered + ' / ' + t.rto)}${m('Sales', inr(t.sales))}${m('Ad spend + GST', inr(t.adTotal))}
+        ${m('Net profit so far', inr(t.net), t.net >= 0 ? 'good' : 'bad')}${m('Net if all on the way are delivered', inr(t.netIfDelivered), t.netIfDelivered >= 0 ? 'good' : 'bad')}</div>
+      <p class="mut" style="font-size:12.5px;margin:10px 0 0">The product cards add up to these totals, so nothing is counted twice. Orders the supplier cancelled are not counted as sales.</p>
+      ${d.unlinked.length ? `<p class="mut" style="font-size:12.5px;margin:6px 0 0">Left out: ${d.unlinked.length} ad campaign${d.unlinked.length === 1 ? '' : 's'} not linked to a product (${inr(d.unlinked.reduce((a, c) => a + c.spendGst, 0))} with GST): ${d.unlinked.map(c => esc(c.campaign)).join(', ')}.</p>` : ''}
+      ${un && un.orders ? card(un) : ''}${d.rows.filter(r => r.name !== 'Unassigned').map(card).join('')}
+      <details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Products and keywords <span class="mut" style="font-weight:400;font-size:13px">· add each new product once</span></summary>
+        <p class="mut" style="font-size:13px;margin:10px 0">An order joins a product when its Shopify title contains one of the title keywords. An ad campaign joins when its name contains a campaign keyword. The first matching product wins. Separate keywords with commas. Cost is what you pay the supplier per unit; leave empty to use the cost from Settings.</p>
+        <div class="scroll"><table><thead><tr><th>Product</th><th>Order title keywords</th><th>Campaign keywords</th><th>Cost ₹</th></tr></thead><tbody>
+        ${[...cfg.products, { name: '', titles: [], campaigns: [], cost: null }].map(p => `<tr class="pg"><td><input class="pn" value="${esc(p.name)}" placeholder="New product"></td><td><input class="pt" value="${esc(p.titles.join(', '))}"></td><td><input class="pc" value="${esc(p.campaigns.join(', '))}"></td><td><input class="pk" type="number" style="width:90px" value="${p.cost ?? ''}"></td></tr>`).join('')}</tbody></table></div>
+        <p style="margin:12px 0 0"><button id="pg-save">Save</button></p></details>`;
+    bindFilterBar(el, sel => { prodSel = sel; render(); });
+    $('#pg-save').onclick = async () => {
+      const split = v => v.split(',').map(x => x.trim()).filter(Boolean);
+      const products = [...el.querySelectorAll('tr.pg')].map(r => ({ name: r.querySelector('.pn').value.trim(), titles: split(r.querySelector('.pt').value), campaigns: split(r.querySelector('.pc').value), cost: r.querySelector('.pk').value }));
+      await api('/products-tracker/config', { method: 'PUT', body: { products } }); render();
+    };
   },
 
   async tracking(el) {
     const d = await api('/tracking?' + filterQuery(trkSel));
     const sm = d.summary, lim = d.limits;
     const tile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
-    const STAGE = { awaiting: ['Placed', 'st-awaiting'], in_transit: ['Shipped', 'st-transit'], delivered: ['Delivered', 'st-delivered'], rto: ['RTO', 'st-rto'], cancelled: ['Cancelled', 'st-cancelled'] };
+    const STAGE = { awaiting: ['Placed', 'st-awaiting'], in_transit: ['Shipped', 'st-transit'], out_for_delivery: ['Out for delivery', 'st-ofd'], undelivered: ['Undelivered', 'st-undel'], delivered: ['Delivered', 'st-delivered'], rto: ['RTO', 'st-rto'], cancelled: ['Cancelled', 'st-cancelled'] };
     const dur = h => h < 1 ? 'under 1 hour' : h < 48 ? Math.round(h) + (Math.round(h) === 1 ? ' hour' : ' hours') : (h / 24).toFixed(1) + ' days';
     const when = iso => iso ? new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–';
     const pct = n => sm.total ? n / sm.total * 100 : 0;
-    const seg = [['awaiting', 'var(--warn)', sm.awaiting], ['in_transit', 'var(--accent)', sm.inTransit], ['delivered', 'var(--good)', sm.delivered], ['rto', 'var(--bad)', sm.rto], ['cancelled', 'var(--bar)', sm.cancelled]];
-    const CHIPS = [['', 'All', sm.total], ['awaiting', 'Placed', sm.awaiting], ['in_transit', 'Shipped', sm.inTransit], ['delivered', 'Delivered', sm.delivered], ['rto', 'RTO', sm.rto], ['attention', 'Needs attention', sm.attention]];
+    const seg = [['awaiting', 'var(--warn)', sm.awaiting], ['in_transit', 'var(--accent)', sm.inTransit], ['out_for_delivery', 'var(--good)', sm.outForDelivery], ['undelivered', 'var(--bad)', sm.undelivered], ['delivered', 'var(--good)', sm.delivered], ['rto', 'var(--bad)', sm.rto], ['cancelled', 'var(--bar)', sm.cancelled]];
+    const CHIPS = [['', 'All', sm.total], ['awaiting', 'Placed', sm.awaiting], ['in_transit', 'Shipped', sm.inTransit], ['out_for_delivery', 'Out for delivery', sm.outForDelivery], ['undelivered', 'Undelivered', sm.undelivered], ['delivered', 'Delivered', sm.delivered], ['rto', 'RTO', sm.rto], ['attention', 'Needs attention', sm.attention]];
 
     el.innerHTML = filterBar(trkSel, filterLabel(trkSel)) + `
       <div class="kpis">
         ${tile('Placed', sm.awaiting, sm.awaitingOld ? `Not shipped yet. <b>${sm.awaitingOld}</b> waiting more than ${lim.awaitingHours} hours` : `Not shipped yet. None waiting more than ${lim.awaitingHours} hours`, sm.awaitingOld ? 'bad' : '')}
         ${tile('Shipped', sm.inTransit, sm.transitOld ? `On the way, not delivered. <b>${sm.transitOld}</b> for more than ${lim.transitDays} days` : `On the way, not delivered. None for more than ${lim.transitDays} days`, sm.transitOld ? 'bad' : '')}
+        ${tile('Out for delivery', sm.outForDelivery, 'With the courier agent today, from Dropship India', 'good')}
+        ${sm.undelivered ? tile('Undelivered', sm.undelivered, 'Courier could not deliver. High chance of RTO', 'bad') : ''}
         ${tile('Delivered', sm.delivered, 'Marked Delivered on the Orders tab, or reported by the courier')}
         ${tile('RTO', sm.rto, 'Marked RTO on the Orders tab')}
       </div>
@@ -558,6 +761,7 @@ const views = {
       <div class="card"><div class="form">
         <div class="seg" role="group" aria-label="Stage">${CHIPS.map(([k, l, n]) => `<button type="button" data-stage="${k}" class="${trkFilter.stage === k ? 'on' : ''}">${l} · ${n}</button>`).join('')}</div>
         <label style="flex:1;min-width:240px">Search<input id="t-q" type="search" placeholder="Order, customer, phone, state, courier, tracking number…" value="${esc(trkFilter.q)}" style="width:100%" autocomplete="off"></label>
+        <button type="button" id="t-export" title="Download the orders shown below as an Excel file">Export to Excel</button>
         <span class="mut" id="t-count"></span></div>
         <div class="scroll"><table><thead><tr><th>Order</th><th>Customer</th><th>State</th><th>Stage</th><th>Courier</th><th>Tracking number</th><th>Shipped after</th><th>Alert</th></tr></thead><tbody id="t-body"></tbody></table></div>
         <div class="empty" id="t-empty" hidden>No orders match.</div></div>
@@ -579,11 +783,11 @@ const views = {
       $('#t-count').textContent = rows.length + ' orders';
       $('#t-empty').hidden = rows.length > 0;
       $('#t-body').innerHTML = rows.slice(0, 400).map(o => {
-        const detail = o.stage === 'awaiting' ? `Waiting ${dur(o.waitHours)} to ship` : o.stage === 'in_transit' && o.transitDays !== null ? `${o.transitDays < 1 ? dur(o.transitDays * 24) : o.transitDays.toFixed(1) + ' days'} since dispatch` : '';
+        const detail = o.stage === 'awaiting' ? `Waiting ${dur(o.waitHours)} to ship` : o.onTheWay && o.transitDays !== null ? `${o.transitDays < 1 ? dur(o.transitDays * 24) : o.transitDays.toFixed(1) + ' days'} since dispatch` : '';
         return `<tr><td>${esc(o.name)}<div class="mut" style="font-size:12px">${when(o.created_at)}</div></td>
           <td>${o.customer ? esc(o.customer) : '<span class="mut">–</span>'}<div class="mut" style="font-size:12px">${o.phone ? esc(o.phone) : ''}</div></td>
           <td>${o.province ? esc(o.province) : '<span class="mut">–</span>'}</td>
-          <td><span class="pill ${STAGE[o.stage][1]}">${STAGE[o.stage][0]}</span>${detail ? `<div class="mut" style="font-size:12px">${detail}</div>` : ''}</td>
+          <td><span class="pill ${STAGE[o.stage][1]}">${STAGE[o.stage][0]}</span>${detail ? `<div class="mut" style="font-size:12px">${detail}</div>` : ''}${o.panel_status ? `<div class="mut" style="font-size:12px">Supplier: ${esc(o.panel_status.replace(/_/g, ' ').toLowerCase())}${o.panel_at ? ' · ' + when(o.panel_at) : ''}</div>` : ''}</td>
           <td>${o.courier ? esc(o.courier) : '<span class="mut">–</span>'}</td>
           <td>${o.tracking_no ? (o.tracking_url && /^https?:\/\//.test(o.tracking_url) ? `<a class="trk" href="${esc(o.tracking_url)}" target="_blank" rel="noopener noreferrer">${esc(o.tracking_no)}</a>` : esc(o.tracking_no)) : '<span class="mut">–</span>'}</td>
           <td>${o.dispatchHours === null ? '<span class="mut">–</span>' : dur(o.dispatchHours)}</td>
@@ -592,6 +796,11 @@ const views = {
     };
     el.querySelectorAll('button[data-stage]').forEach(b => b.onclick = () => { trkFilter.stage = b.dataset.stage; el.querySelectorAll('button[data-stage]').forEach(x => x.classList.toggle('on', x === b)); draw(); });
     $('#t-q').addEventListener('input', draw);
+    $('#t-export').onclick = () => {   // exports exactly the rows shown
+      const a = document.createElement('a');
+      a.href = '/api' + withProduct('/tracking/export?' + filterQuery(trkSel) + '&stage=' + encodeURIComponent(trkFilter.stage) + '&q=' + encodeURIComponent($('#t-q').value));
+      document.body.appendChild(a); a.click(); a.remove();
+    };
     draw();
   },
 
@@ -722,11 +931,7 @@ const views = {
   },
 
   async bank(el) {
-    const [rows, fund, sup] = await Promise.all([api('/bank?' + filterQuery(bankSel)), api('/meta-funds'), api('/supplier-wallet')]);
-    const supplierBox = `<div class="card" style="margin-bottom:16px"><h2>Supplier wallet</h2>
-      <div class="kpis" style="margin-bottom:10px"><div class="kpi ${sup.balance > 0 ? 'good' : ''}"><div class="k">Wallet balance</div><div class="v">${inr(sup.balance)}</div>
-        <div class="n">${sup.entries} recharge${sup.entries === 1 ? '' : 's'}${sup.last ? ', last on ' + sup.last : ''}</div></div></div>
-      <p class="mut" style="font-size:12px;margin:0">Adds up your <b>Money out</b> entries with category <b>Supplier</b>. Charges and payouts on orders are not taken off yet.</p></div>`;
+    const [rows, fund] = await Promise.all([api('/bank?' + filterQuery(bankSel)), api('/meta-funds')]);
     const lowDays = fund.daysLeft !== null && fund.daysLeft < 2;
     const fundTile = (k, v, n = '', c = '') => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`;
     const fundBox = `<div class="card" style="margin-bottom:16px"><h2>Meta ad funds (prepaid, all time)</h2>
@@ -736,10 +941,11 @@ const views = {
         ${fundTile('Balance left', inr(fund.balance), fund.perDay > 0 ? `About ${fund.daysLeft.toFixed(1)} days at ${inr(fund.perDay)} a day` : 'No spend in the last 7 days', fund.balance < 0 || lowDays ? 'bad' : fund.balance > 0 ? 'good' : '')}
         ${fundTile('Check', fund.balance < 0 ? 'Recharge missing?' : 'Compare', 'Balance left should match "available after your next balance payment" in Meta billing (Funds minus Outstanding balance). A gap means a recharge not entered here, or spend not imported yet.')}
       </div>
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:0 0 12px"><label>Match to Meta: "available after your next balance payment" (₹)<input id="mf-actual" type="number" step="0.01" placeholder="e.g. 5141.46" style="width:190px"></label><button id="mf-match">Match balance to Meta</button><span class="mut" style="font-size:12px;max-width:430px">Open Meta billing, copy that number, press the button. It corrects the opening balance so the dashboard equals Meta now, then keeps counting. Best right after a Meta refresh.</span></div>
       <p class="mut" style="font-size:12px;margin:0">Enter each recharge below as <b>Money out</b> with category <b>Ads</b>. Do not enter Meta's daily deductions: they come from the spend data. Money already in your Meta account before you started: set it in <a href="#settings">Settings</a>.</p></div>`;
-    const cats = ['COD remittance', 'Gateway payout', 'Owner capital', 'Refund received', 'Ads', 'Supplier', 'Courier', 'Tools', 'Salary', 'Withdrawal', 'Other'];
+    const cats = ['COD remittance', 'Supplier payout', 'Gateway payout', 'Owner capital', 'Refund received', 'Ads', 'Supplier', 'Courier', 'Tools', 'Salary', 'Withdrawal', 'Other'];
     const inn = rows.filter(r => r.type === 'in').reduce((a, r) => a + r.amount, 0), out = rows.filter(r => r.type === 'out').reduce((a, r) => a + r.amount, 0);
-    el.innerHTML = fundBox + supplierBox + filterBar(bankSel, filterLabel(bankSel)) + `<div class="card"><h2>Add bank entry</h2><form class="form" id="bform">
+    el.innerHTML = fundBox + filterBar(bankSel, filterLabel(bankSel)) + `<div class="card"><h2>Add bank entry</h2><form class="form" id="bform">
       <label>Date<input type="date" id="b-day" value="${today()}"></label>
       <label>Type<select id="b-type"><option value="in">Money in</option><option value="out">Money out</option></select></label>
       <label>Amount (₹)<input id="b-amt" type="number" min="1" step="any" required></label>
@@ -755,6 +961,10 @@ const views = {
       render();
     };
     el.querySelectorAll('button[data-id]').forEach(b => b.onclick = async () => { await api('/bank/' + b.dataset.id, { method: 'DELETE' }); render(); });
+    $('#mf-match').onclick = async () => {
+      const v = parseFloat($('#mf-actual').value); if (!Number.isFinite(v)) return alert('Type the number from Meta billing first.');
+      await api('/settings', { method: 'PUT', body: { meta_opening_balance: (fund.opening + (v - fund.balance)).toFixed(2) } }); render();
+    };
     bindFilterBar(el, s => { bankSel = s; render(); });
   },
 
@@ -773,8 +983,8 @@ const views = {
       <div class="card" style="margin-bottom:16px"><h2>Cost assumptions</h2><div class="fields">
         ${F('default_cost', 'Default supplier cost (₹)')}${F('gst', 'GST rate (%)')}${F('price_incl_gst', 'Price includes GST (1 = yes, 0 = no)', '1')}
         ${F('ship', 'Forward courier (₹)')}${F('return_ship', 'Return courier (₹)')}${F('pack', 'Packaging (₹)')}
-        ${F('cod_fee', 'COD fee (₹)')}${F('gateway_pct', 'Gateway fee, prepaid (%)')}${F('platform_pct', 'Platform fee (%)')}
-        ${F('ad_gst', 'GST on ad spend (%)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}${F('meta_opening_balance', 'Meta ad balance before tracking (₹)')}
+        ${F('cod_fee', 'COD fee, fixed (₹)')}${F('cod_fee_pct', 'COD fee, % of order amount')}${F('gateway_pct', 'Gateway fee, prepaid (%)')}${F('platform_pct', 'Platform fee (%)')}
+        ${F('ad_gst', 'GST on ad spend (%)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}${F('meta_opening_balance', 'Meta ad balance before tracking (₹)')}${F('supplier_rto_charge', 'Supplier charge per RTO order (₹)')}${F('supplier_auto_rto', 'Take RTO charge off the wallet automatically (1 = yes, 0 = no)', '1')}
       </div><div class="form" style="margin:14px 0 0"><button class="primary" id="save">Save</button><span class="mut" id="saved"></span></div></div>
       <div class="card"><h2>Supplier cost per product</h2>${prods.length ? `<div class="scroll"><table><thead><tr><th>Product</th><th class="r">Orders</th><th class="r">Cost per unit (₹)</th></tr></thead><tbody>${prods.map(p =>
         `<tr><td>${esc(p.title)}</td><td class="r">${p.orders}</td><td class="r"><input data-p="${esc(p.title)}" type="number" step="any" style="width:100px" placeholder="${s.default_cost}" value="${p.cost ?? ''}"></td></tr>`).join('')}</tbody></table></div>
@@ -795,9 +1005,11 @@ async function render() {
   const tab = (location.hash.slice(1).split('?')[0] || 'overview');
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + tab));
   const PAGES = { overview: ['Overview', 'Profit, sales, ads and cash at a glance'], orders: ['Orders', 'Every Shopify order with its status and profit'],
+    products: ['Products', 'Orders, returns, ad spend and profit for each product'],
     tracking: ['Live tracking', 'Where every order is: placed, shipped by Dropship India, delivered or RTO'],
     risk: ['Risk check', 'Spot suspicious orders before you ship them'], ads: ['Ad spend', 'Daily spend and manual ad entries'],
-    meta: ['Meta Ads', 'Performance from Ads Manager: reach, clicks, cost and returns'], bank: ['Bank', 'Money in and out, Meta ad funds and supplier wallet'],
+    meta: ['Meta Ads', 'Performance from Ads Manager: reach, clicks, cost and returns'], supplier: ['Supplier', 'Wallet, charges and payout statements from Dropship India'],
+    bank: ['Bank', 'Money in and out, Meta ad funds and supplier wallet'],
     settings: ['Settings', 'Connections, cost assumptions and product costs'], calculator: ['Profit calculator', 'Work out profit from orders placed, delivered and returned'] };
   const pg = PAGES[tab] || PAGES.overview;
   $('#ptitle').textContent = pg[0]; $('#psub').textContent = pg[1];
@@ -805,6 +1017,17 @@ async function render() {
   const l = status.syncs.map(s => s.at).sort().pop();
   $('#syncnote').textContent = l ? 'Last sync ' + new Date(l).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
   $('#range').style.display = ['ads'].includes(tab) ? '' : 'none';
+  { // product selector: list from the Products tab; only the tabs that can be split by product show it
+    const g = await fetch('/api/products-tracker/config', { method: 'GET' }).catch(() => null);
+    const names = ((g && g.ok ? await g.json().catch(() => ({})) : {}).products || []).map(p => p.name);
+    const sel = $('#prod'); if (curProduct && !names.includes(curProduct)) curProduct = '';
+    sel.innerHTML = '<option value="">All products</option>' + names.map(n => `<option value="${esc(n)}"${n === curProduct ? ' selected' : ''}>${esc(n)}</option>`).join('');
+    sel.onchange = () => { curProduct = sel.value; try { localStorage.setItem('pd_product', curProduct); } catch { /* ignore */ } render(); };
+    const splits = ['overview', 'orders', 'tracking', 'risk', 'ads', 'meta'].includes(tab);
+    sel.style.display = splits && names.length ? '' : 'none';
+    if (curProduct && splits) $('#psub').textContent = 'Showing only ' + curProduct;
+    else if (curProduct && ['bank', 'supplier'].includes(tab)) $('#psub').textContent += ' (shared by all products)';
+  }
   const stat = (id, ok, text) => { $('#dot-' + id).className = 'dot ' + (ok ? 'ok' : ''); $('#st-' + id).textContent = text; };
   stat('shopify', status.connections.shopify, status.connections.shopify ? 'Connected' : 'Not connected');
   stat('meta', status.connections.meta, status.connections.meta ? 'Connected' : 'CSV import');

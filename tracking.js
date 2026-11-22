@@ -1,4 +1,5 @@
-import { db, daysAgo } from './db.js';
+import { db, daysAgo, EFF_STATUS } from './db.js';
+import { filterOrders } from './scope.js';
 
 // Live order tracking from what Dropship India sends to Shopify.
 // Shopify knows two things: the order was placed, and (once Dropship India dispatches it) a fulfilment with the
@@ -8,27 +9,33 @@ import { db, daysAgo } from './db.js';
 export const AWAITING_ALERT_HOURS = 48;   // placed but not shipped for this long
 export const TRANSIT_ALERT_DAYS = 7;      // shipped but not delivered for this long
 
-export function listTracking({ days = 30, from: fromOpt = '', to: toOpt = '' } = {}) {
+export function listTracking({ days = 30, from: fromOpt = '', to: toOpt = '', product = '' } = {}) {
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
   const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : '0000-00-00';
   const to = valid(toOpt) ? toOpt : '9999-12-31';
-  const raw = db.prepare(`SELECT id, name, created_at, day, customer, phone, province, payment, total, status, courier, tracking_no, tracking_url, fulfilled_at, ship_status
-    FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC`).all(from, to);
+  let raw = db.prepare(`SELECT o.id, o.name, o.created_at, o.day, o.customer, o.phone, o.province, o.payment, o.total, ${EFF_STATUS} AS status, o.courier, o.tracking_no, o.tracking_url, o.fulfilled_at, o.ship_status,
+      o.product, p.status AS panel_status, p.status_at AS panel_at, p.awb AS panel_awb
+    FROM orders o LEFT JOIN supplier_panel p ON p.order_name = o.name WHERE o.day >= ? AND o.day <= ? ORDER BY o.created_at DESC`).all(from, to);
   const now = Date.now();
+  raw = filterOrders(raw, product);
 
   const rows = raw.map(o => {
     const placed = Date.parse(o.created_at), sent = o.fulfilled_at ? Date.parse(o.fulfilled_at) : null;
     const stage = o.status === 'cancelled' ? 'cancelled' : o.status === 'delivered' ? 'delivered' : o.status === 'rto' ? 'rto'
-      : (o.status === 'shipped' || sent) ? 'in_transit' : 'awaiting';
+      : o.panel_status === 'OUT_FOR_DELIVERY' ? 'out_for_delivery' : o.panel_status === 'UNDELIVERED' ? 'undelivered'
+      : (o.status === 'shipped' || sent || o.panel_status === 'SHIPPED') ? 'in_transit' : 'awaiting';
+    const onTheWay = ['in_transit', 'out_for_delivery', 'undelivered'].includes(stage);
     const waitHours = stage === 'awaiting' ? (now - placed) / 36e5 : null;
     const dispatchHours = sent ? Math.max(0, (sent - placed) / 36e5) : null;
-    const transitDays = stage === 'in_transit' && sent ? (now - sent) / 864e5 : null;
+    const transitDays = onTheWay && sent ? (now - sent) / 864e5 : null;
     const alerts = [];
     if (waitHours !== null && waitHours > AWAITING_ALERT_HOURS) alerts.push(`Not shipped after ${Math.floor(waitHours / 24)} days`);
     if (transitDays !== null && transitDays > TRANSIT_ALERT_DAYS) alerts.push(`Shipped ${Math.floor(transitDays)} days ago, not delivered`);
+    if (o.panel_status === 'UNDELIVERED') alerts.push('Courier could not deliver (supplier panel: Undelivered)');
     if (o.ship_status === 'failure') alerts.push('Courier reported a delivery failure');
     if (o.ship_status === 'attempted_delivery') alerts.push('Courier attempted delivery');
-    return { ...o, stage, waitHours, dispatchHours, transitDays, alerts };
+    if (!o.tracking_no && o.panel_awb) o.tracking_no = o.panel_awb;   // Dropship India's own AWB when Shopify has none
+    return { ...o, stage, onTheWay, waitHours, dispatchHours, transitDays, alerts };
   });
 
   const count = s => rows.filter(r => r.stage === s).length;
@@ -38,7 +45,7 @@ export function listTracking({ days = 30, from: fromOpt = '', to: toOpt = '' } =
     if (!r.courier) continue;
     const c = (couriers[r.courier] ||= { courier: r.courier, shipped: 0, inTransit: 0, delivered: 0, rto: 0, dispatch: [], transit: [] });
     c.shipped++;
-    if (r.stage === 'in_transit') { c.inTransit++; if (r.transitDays !== null) c.transit.push(r.transitDays); }
+    if (r.onTheWay) { c.inTransit++; if (r.transitDays !== null) c.transit.push(r.transitDays); }
     if (r.stage === 'delivered') c.delivered++;
     if (r.stage === 'rto') c.rto++;
     if (r.dispatchHours !== null) c.dispatch.push(r.dispatchHours);
@@ -48,9 +55,9 @@ export function listTracking({ days = 30, from: fromOpt = '', to: toOpt = '' } =
     rows,
     summary: {
       total: rows.length,
-      awaiting: count('awaiting'), inTransit: count('in_transit'), delivered: count('delivered'), rto: count('rto'), cancelled: count('cancelled'),
+      awaiting: count('awaiting'), inTransit: count('in_transit'), outForDelivery: count('out_for_delivery'), undelivered: count('undelivered'), delivered: count('delivered'), rto: count('rto'), cancelled: count('cancelled'),
       awaitingOld: rows.filter(r => r.stage === 'awaiting' && r.waitHours > AWAITING_ALERT_HOURS).length,
-      transitOld: rows.filter(r => r.stage === 'in_transit' && r.transitDays > TRANSIT_ALERT_DAYS).length,
+      transitOld: rows.filter(r => r.onTheWay && r.transitDays > TRANSIT_ALERT_DAYS).length,
       avgDispatchHours: avg(sentRows.map(r => r.dispatchHours)),
       attention: rows.filter(r => r.alerts.length).length
     },

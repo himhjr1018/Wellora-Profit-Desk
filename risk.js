@@ -1,3 +1,4 @@
+import { filterOrders } from './scope.js';
 import { db, daysAgo } from './db.js';
 import { checkPincode } from './pincodes.js';
 
@@ -133,14 +134,14 @@ export function riskByOrder() {
 }
 
 // Orders with customer details and their risk, for the Risk tab
-export function listRisk({ days = 30, from: fromOpt = '', to: toOpt = '' } = {}) {
+export function listRisk({ days = 30, from: fromOpt = '', to: toOpt = '', product = '' } = {}) {
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
   const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : '0000-00-00';
   const to = valid(toOpt) ? toOpt : '9999-12-31';
   const rows = db.prepare(`SELECT id, name, day, created_at, customer, phone, email, address, city, zip, province, payment, total, status, confirm, ip, discount, product
     FROM orders WHERE day >= ? AND day <= ? ORDER BY created_at DESC`).all(from, to);
   const risk = riskByOrder();
-  return rows.map(o => ({ ...o, risk: risk[o.id] }));
+  return filterOrders(rows, product).map(o => ({ ...o, risk: risk[o.id] }));
 }
 
 // Block a customer: the phone, the address and (if there is no phone) the name, so later orders match

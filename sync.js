@@ -95,6 +95,16 @@ function mapOrder(o) {
     created_at: o.created_at,
     day: istDay(o.created_at),
     city: o.shipping_address?.city || '',
+    gross_items: parseFloat(o.total_line_items_price) || 0,
+    discounts: parseFloat(o.total_discounts) || 0,
+    // Shopify takes returns and cancellations off sales through refund records, on the day each refund was made
+    refunds_json: JSON.stringify((o.refunds || []).map(r => ({
+      at: r.created_at,
+      amount: (r.refund_line_items || []).reduce((a, l) => a + (parseFloat(l.subtotal) || 0), 0)
+        || (r.transactions || []).filter(t => t.kind === 'refund' && t.status !== 'failure').reduce((a, t) => a + (parseFloat(t.amount) || 0), 0)
+    }))),
+    cancelled_at: o.cancelled_at || '',
+    cancel_reason: o.cancel_reason || '',
     fulfilled_at: ful?.created_at || '',
     courier: ful?.tracking_company || '',
     tracking_no: ful?.tracking_number || (ful?.tracking_numbers || [])[0] || '',
@@ -123,9 +133,11 @@ export async function syncShopify() {
   const since = new Date(Date.now() - 90 * 864e5).toISOString();
   let url = `https://${store}/admin/api/2024-10/orders.json?status=any&limit=250&created_at_min=${encodeURIComponent(since)}`;
   const up = db.prepare(`
-    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer,zip,province,phone,email,address,ip,discount,fulfilled_at,courier,tracking_no,tracking_url,ship_status)
-    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?,?,?,?,?,?,?,?,?,?,?,?,?)
+    INSERT INTO orders(id,name,created_at,day,city,total,payment,product,qty,status,manual,source,customer,zip,province,phone,email,address,ip,discount,fulfilled_at,courier,tracking_no,tracking_url,ship_status,cancelled_at,cancel_reason,gross_items,discounts,refunds_json)
+    VALUES(?,?,?,?,?,?,?,?,?,?,0,'shopify',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
+      gross_items=excluded.gross_items, discounts=excluded.discounts, refunds_json=excluded.refunds_json,
+      cancelled_at=excluded.cancelled_at, cancel_reason=excluded.cancel_reason,
       fulfilled_at=excluded.fulfilled_at, courier=excluded.courier, tracking_no=excluded.tracking_no, tracking_url=excluded.tracking_url, ship_status=excluded.ship_status,
       zip=COALESCE(NULLIF(excluded.zip,''), orders.zip), province=COALESCE(NULLIF(excluded.province,''), orders.province),
       phone=COALESCE(NULLIF(excluded.phone,''), orders.phone), email=COALESCE(NULLIF(excluded.email,''), orders.email),
@@ -141,7 +153,7 @@ export async function syncShopify() {
     const { orders } = await res.json();
     for (const raw of orders) {
       const o = mapOrder(raw);
-      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer, o.zip, o.province, o.phone, o.email, o.address, o.ip, o.discount, o.fulfilled_at, o.courier, o.tracking_no, o.tracking_url, o.ship_status);
+      up.run(o.id, o.name, o.created_at, o.day, o.city, o.total, o.payment, o.product, o.qty, o.status, o.customer, o.zip, o.province, o.phone, o.email, o.address, o.ip, o.discount, o.fulfilled_at, o.courier, o.tracking_no, o.tracking_url, o.ship_status, o.cancelled_at, o.cancel_reason, o.gross_items, o.discounts, o.refunds_json);
       n++;
     }
     const next = (res.headers.get('link') || '').match(/<([^>]+)>;\s*rel="next"/);
