@@ -1,6 +1,6 @@
 import { filterOrders } from './scope.js';
 import { db, daysAgo } from './db.js';
-import { checkPincode } from './pincodes.js';
+import { checkPincode, courierFlags } from './pincodes.js';
 
 // Basic fraud / risk check for COD orders. These are hints for who to call or WhatsApp before shipping.
 // A flag is not proof of fraud: it can be a genuine repeat customer or a typing mistake.
@@ -47,7 +47,7 @@ export const blocklist = () => db.prepare('SELECT * FROM blocklist ORDER BY id D
 
 // ---------- scoring ----------
 export function riskByOrder() {
-  const all = db.prepare(`SELECT id, customer, city, status, qty, created_at, zip, province, source, phone, email, address, ip, confirm FROM orders`).all();
+  const all = db.prepare(`SELECT id, customer, city, status, qty, created_at, zip, province, source, phone, email, address, ip, confirm, payment FROM orders`).all();
   const blocks = blocklist();
   const bPhone = new Set(blocks.filter(b => b.kind === 'phone').map(b => b.value));
   const bAddr = new Set(blocks.filter(b => b.kind === 'address').map(b => b.value));
@@ -117,6 +117,9 @@ export function riskByOrder() {
 
     // pincode, state and city against the India Post directory
     for (const f of checkPincode(o)) add(f.text, f.weight);
+
+    // Delhivery / Ekart serviceability (only when you have loaded their pincode files)
+    for (const f of courierFlags(o)) add(f.text, f.weight);
 
     // blocklist
     if ((o._phone && bPhone.has(o._phone)) || (o._addr.length >= 10 && bAddr.has(o._addr)) || (o._name && bName.has(o._name)))

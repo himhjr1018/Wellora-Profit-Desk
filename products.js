@@ -10,7 +10,8 @@ const FILE = path.join(ROOT, 'data', 'product-groups.json');
 export function saveGroups(j) {
   const products = (j.products || []).filter(p => p && p.name).map(p => ({
     name: String(p.name), titles: (p.titles || []).map(String).filter(Boolean), campaigns: (p.campaigns || []).map(String).filter(Boolean),
-    cost: p.cost !== '' && p.cost !== null && p.cost !== undefined && Number.isFinite(Number(p.cost)) ? Number(p.cost) : null }));
+    cost: p.cost !== '' && p.cost !== null && p.cost !== undefined && Number.isFinite(Number(p.cost)) ? Number(p.cost) : null,
+    rto: p.rto !== '' && p.rto !== null && p.rto !== undefined && Number.isFinite(Number(p.rto)) ? Number(p.rto) : null }));
   writeFileSync(FILE, JSON.stringify({ products }, null, 2));
 }
 
@@ -30,7 +31,7 @@ export function productTracker({ days = 30, from: fromOpt = '', to: toOpt = '' }
     r.orders++; r.titles[o.product] = (r.titles[o.product] || 0) + 1;
     if (o.status === 'cancelled') { r.cancelled++; continue; }
     r.sales += o.total;
-    const e = orderEconomics(o, s, { [o.product]: g.cost ?? costTable[o.product] ?? s.default_cost });
+    const e = orderEconomics(o, s, { [o.product]: g.cost ?? costTable[o.product] ?? s.default_cost }, g.rto != null ? { [o.product]: g.rto } : {});
     if (o.status === 'delivered') { r.delivered++; r.realised += e.profit; }
     else if (o.status === 'rto') { r.rto++; r.realised += e.profit; }
     else { r.transit++; r.expected += e.profit; }
@@ -43,11 +44,11 @@ export function productTracker({ days = 30, from: fromOpt = '', to: toOpt = '' }
     r.adSpend += a.spend; r.adGst += a.spend * s.ad_gst / 100; r.campaigns.push({ campaign: a.campaign, spend: a.spend });
   }
   const rows = Object.values(by).filter(r => r.name !== 'Unassigned' || r.orders || r.adSpend).map(r => {
-    const active = r.orders - r.cancelled, adTotal = r.adSpend + r.adGst, settled = r.delivered + r.rto;
-    return { ...r, active, adTotal, rtoRate: settled ? r.rto / settled * 100 : null, cpa: active ? adTotal / active : null, roas: r.adSpend ? r.sales / r.adSpend : null,
+    const active = r.orders - r.cancelled, adTotal = r.adSpend + (s.ad_gst_claim ? 0 : r.adGst), settled = r.delivered + r.rto;
+    return { ...r, active, adTotal, rtoRate: settled ? r.rto / settled * 100 : null, cpa: active ? r.adSpend / active : null, roas: r.adSpend ? r.sales / r.adSpend : null,
       net: r.realised - adTotal, netIfDelivered: r.realised + r.expected - adTotal, titles: Object.entries(r.titles).map(([title, n]) => ({ title, orders: n })) };
   });
   const sum = f => rows.reduce((a, r) => a + r[f], 0);
   const total = Object.fromEntries(['orders', 'cancelled', 'delivered', 'rto', 'transit', 'sales', 'adSpend', 'adGst', 'adTotal', 'realised', 'expected', 'net', 'netIfDelivered'].map(f => [f, sum(f)]));
-  return { from, to, rows, total, unlinked, config: cfg };
+  return { from, to, rows, total, unlinked, gstClaim: !!s.ad_gst_claim, config: cfg };
 }

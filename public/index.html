@@ -201,7 +201,6 @@ code{background:var(--field);border:1px solid var(--line);border-radius:6px;padd
       <a href="#products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9"/></svg>Products</a>
       <a href="#risk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>Risk check</a>
       <div class="grp">Marketing</div>
-      <a href="#ads"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l7 4V6L7 10H4z"/><path d="M17.5 9a4 4 0 010 6"/></svg>Ad spend</a>
       <a href="#meta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Meta Ads</a>
       <div class="grp">Money</div>
       <a href="#bank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>Bank</a>
@@ -443,89 +442,93 @@ function metaBlock(st, last) {
 const views = {
   async overview(el) {
     const d = await api('/summary?' + filterQuery(ovSel));
-    const k = d.kpi;
+    const k = d.kpi, ss = d.shopifySales;
     const rangeLabel = ovSel.p === 'all' ? `All time (from ${d.from})` : d.from === d.to ? d.from : `${d.from} to ${d.to}`;
     const tile = (label, v, note = '', c = '', extra = '') => `<div class="kpi ${c}"><div class="k">${label}</div><div class="v">${v}</div><div class="n">${note}</div>${extra}</div>`;
     let run = 0; const netSeries = d.daily.map(x => (run += x.gross - x.ads - x.adGst));
+    const health = await api('/health').catch(() => null);
     const empty = !k.orders && !status.syncs.length;
-    const inTransit = d.counts.new + d.counts.shipped;
-    const ss = d.shopifySales;
     const REASON = { customer: 'Customer changed mind', fraud: 'Fraud', inventory: 'Out of stock', declined: 'Payment declined', other: 'Other', return: 'Return' };
-    const costsNote = `ads ${inr(k.adSpend)}, ad GST ${inr(k.adGst)}${k.fixed ? ' and fixed costs ' + inr(k.fixed) : ''}`;
+    const open = d.counts.new + d.counts.shipped, adTotal = k.adSpend + k.adGstCost;
+    const deliveryRate = k.settled ? k.delivered / k.settled * 100 : null;
+    const rateGood = deliveryRate !== null && k.breakeven !== null ? deliveryRate >= k.breakeven : null;
+    const rtoLossTotal = k.rtoLossTotal, deliveredProfit = k.gross + rtoLossTotal;
+    const row = (label, v, c = '', note = '', bold = false) => `<tr${bold ? ' style="font-weight:700"' : ''}><td>${label}${note ? `<div class="mut" style="font-size:12px;font-weight:400">${note}</div>` : ''}</td><td class="r ${c}">${v}</td></tr>`;
+    const SEG = { new: 'var(--warn)', shipped: 'var(--accent)', delivered: 'var(--good)', rto: 'var(--bad)', cancelled: 'var(--bar)' };
     el.innerHTML = filterBar(ovSel, rangeLabel) + `
+      ${health ? `<details class="card" style="margin-bottom:18px;padding:12px 16px;${health.warnings ? 'border-left:4px solid var(--warn)' : ''}"><summary style="cursor:pointer;font-weight:600">${health.warnings ? `Data checks: ${health.warnings} thing${health.warnings === 1 ? '' : 's'} to look at` : 'Data checks: everything matches'} <span class="mut" style="font-weight:400;font-size:13px">· ${health.checks.length} checks</span></summary>
+        <table style="margin-top:10px"><tbody>${health.checks.map(c => `<tr><td style="width:28px">${c.level === 'ok' ? '<span class="pos">✓</span>' : c.level === 'warn' ? '<span class="neg">!</span>' : '<span class="mut">i</span>'}</td><td><b>${esc(c.title)}</b><div class="mut" style="font-size:13px">${esc(c.detail)}${c.items && c.items.length ? ': ' + c.items.slice(0, 6).map(esc).join('; ') + (c.items.length > 6 ? '…' : '') : ''}</div></td></tr>`).join('')}</tbody></table></details>` : ''}
       ${empty ? `<div class="banner"><span>No data yet. Connect Shopify and Meta in <a href="#settings">Settings</a>, or load sample data to look around.</span><button id="demo">Load sample data</button></div>` : ''}
-      <div class="sect">Profit</div>
-      <div class="kpis k2">
-        ${tile('Net profit if all orders are delivered', inr(k.netIfDelivered),
-          `Counts all ${inTransit} Placed and Shipped orders as delivered (${inr(k.expectedPending)} profit) and leaves cancelled orders out. Orders already returned stay as losses. After ${costsNote}.`,
-          'big ' + (k.netIfDelivered >= 0 ? 'good' : 'bad'))}
-        ${tile('Net profit after delivery and RTO', inr(k.net),
-          `Only orders with a final outcome: ${k.delivered} delivered, ${k.rto} returned (gross ${inr(k.gross)}). After ${costsNote}.`,
-          'big ' + (k.net >= 0 ? 'good' : 'bad'), spark(netSeries, k.net >= 0 ? 'var(--good)' : 'var(--bad)'))}
-      </div>
-      <div class="sect">Sales, the way Shopify's Sales report counts them</div>
+
+      <div class="sect">How you are doing</div>
       <div class="kpis">
-        ${tile('Gross sales', inr(ss.gross), `${ss.grossOrders} orders placed. Products before discounts, counted on the day each order was placed`)}
-        ${tile('Discounts', '-' + inr(ss.discounts), 'Taken off on the day the order was placed')}
-        ${tile('Returns', '-' + inr(ss.returns), `${ss.returnOrders} refund${ss.returnOrders === 1 ? '' : 's'} made in this period (cancelled or returned orders)${ss.returnsFromEarlier ? ', ' + ss.returnsFromEarlier + ' for orders placed before it' : ''}. Taken off on the day the refund was made`, ss.returns ? 'bad' : '')}
-        ${tile('Total sales', inr(ss.net), 'Gross sales minus discounts minus returns. Matches Total sales in Shopify Analytics', 'good', spark([...ss.byDay].reverse().map(x => x.net)))}
+        ${tile('Net profit so far', inr(k.net), `${k.delivered} delivered and ${k.rto} returned orders, minus ads${k.fixed ? ' and fixed costs' : ''}`, 'mid ' + (k.net >= 0 ? 'good' : 'bad'), spark(netSeries, k.net >= 0 ? 'var(--good)' : 'var(--bad)'))}
+        ${tile('If open orders are delivered', inr(k.netIfDelivered), `${open} orders still on the way would add ${inr(k.expectedPending)}`, 'mid ' + (k.netIfDelivered >= 0 ? 'good' : 'bad'))}
+        ${tile('Ad spend', inr(k.adSpend), `${k.gstClaimed ? '' : `GST ${inr(k.adGst)} is added in the profit · `}ROAS ${k.roas ? k.roas.toFixed(1) + 'x' : 'n/a'} · ${inr(k.cpa)} per order`, 'mid', spark(d.daily.map(x => x.ads)))}
+        ${tile('Delivery rate', deliveryRate === null ? '–' : deliveryRate.toFixed(0) + '%', k.settled ? `${k.delivered} delivered of ${k.settled} settled${k.breakeven !== null ? ` · breakeven ${k.breakeven.toFixed(0)}%` : ''}` : 'Appears once orders are delivered or returned', 'mid ' + (rateGood === null ? '' : rateGood ? 'good' : 'bad'))}
       </div>
-      ${ss.noRefund.orders ? `<div class="banner" style="margin-top:18px"><span><b>${ss.noRefund.orders} cancelled order${ss.noRefund.orders === 1 ? '' : 's'} (${inr(ss.noRefund.value)}) ${ss.noRefund.orders === 1 ? 'has' : 'have'} no refund recorded in Shopify.</b> Shopify's Sales report only takes cancellations off through refunds, so these still count as sales here too.</span></div>` : ''}
-      <details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Day by day <span class="mut" style="font-weight:400;font-size:13px">· show the table</span></summary>
-        <p class="mut" style="margin:10px 0 14px;font-size:13px">An order counts on the day it was placed. If it is cancelled or returned later, the refund is taken off on the day it was made, so an earlier day never changes.</p>
-        <div class="scroll"><table><thead><tr><th>Date</th><th class="r">Orders placed</th><th class="r">Gross sales</th><th class="r">Discounts</th><th class="r">Returns that day</th><th class="r">Total sales</th></tr></thead><tbody>${ss.byDay.slice(0, 120).map(x => `
-          <tr><td>${x.day}</td><td class="r">${x.placed}</td><td class="r">${inr(x.gross)}</td><td class="r ${x.discounts ? 'neg' : 'mut'}">${x.discounts ? '-' + inr(x.discounts) : '–'}</td>
-          <td class="r ${x.returns ? 'neg' : 'mut'}">${x.returns ? '-' + inr(x.returns) + ' <span class="mut">(' + x.returnOrders + ' refund' + (x.returnOrders === 1 ? '' : 's') + ')</span>' : '–'}</td>
-          <td class="r"><b>${inr(x.net)}</b></td></tr>`).join('')}</tbody></table></div></details>
-      ${ss.returnOrders ? `<details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Cancelled and returned orders <span class="mut" style="font-weight:400;font-size:13px">· ${ss.returnOrders} refunds, show the list</span></summary>
-        <div class="legend" style="margin:12px 0">${Object.entries(ss.byReason).map(([k, v]) => `<span><b style="color:var(--fg)">${REASON[k] || k}</b> ${v.orders} · ${inr(v.value)}</span>`).join('')}</div>
-        <div class="scroll"><table><thead><tr><th>Order</th><th>Placed on</th><th>Refunded on</th><th>Reason</th><th class="r">Amount</th></tr></thead><tbody>${ss.list.map(o => `
-          <tr><td>${esc(o.name)}</td><td>${o.placedDay}</td><td>${o.refundDay}${o.placedDay !== o.refundDay ? ' <span class="mut">(later)</span>' : ''}</td>
-          <td><span class="pill ${o.reason === 'fraud' ? 'risk-high' : 'cancelled'}">${REASON[o.reason] || o.reason}</span></td><td class="r">${inr(o.total)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
-      <div class="sect">Product sales by outcome (separate from the Shopify report above)</div>
-      <div class="kpis k2">
-        ${tile('Product sales if all orders are delivered', inr(k.salesIfDelivered),
-          `${inTransit + d.counts.delivered} orders: ${inTransit} Placed and Shipped counted as delivered, plus ${d.counts.delivered} already delivered. Cancelled and returned orders are left out of the day they were placed.`, 'mid', spark(d.daily.map(x => x.salesProj || 0)))}
-        ${tile('Product sales after delivery and RTO', inr(k.salesDelivered),
-          `Only the ${d.counts.delivered} delivered orders. ${d.counts.rto} returned orders (${inr(k.rtoValue)}) are not counted.`, 'mid')}
-      </div>
-      <div class="sect">Orders, ads and cash</div>
-      <div class="kpis">
-        ${tile('Ad spend', inr(k.adSpend),`+ ${inr(k.adGst)} GST · ROAS ${k.roas ? k.roas.toFixed(2) + 'x' : 'n/a'} · CPA ${inr(k.cpa)}`, '', spark(d.daily.map(x => x.ads)))}
-        ${curProduct ? '' : tile('Bank balance', inr(k.bankBalance), `In ${inr(k.bankIn)} · Out ${inr(k.bankOut)} this period`)}
-        ${tile('Orders', k.orders.toLocaleString('en-IN'), `Including ${d.counts.cancelled} cancelled. ` + (k.settled ? `${inr(k.profitPerOrder)} profit per order` : 'Profit per order appears once orders are Delivered or RTO'), '', spark(d.daily.map(x => x.orders)))}
-        ${tile('RTO rate', k.rtoRate.toFixed(1) + '%', `${k.rto} returned of ${k.delivered + k.rto} settled`, k.rtoRate > 30 ? 'bad' : '')}
-      </div>
-      <div class="sect">Trends and breakdown</div>
+
+      <div class="sect">Orders</div>
+      <div class="card"><div class="pipe" role="img" aria-label="Orders by status">${STATUSES.filter(s => d.counts[s]).map(s => `<i style="width:${d.counts[s] / Math.max(1, k.orders) * 100}%;background:${SEG[s]}" title="${STATUS_LABEL[s]}: ${d.counts[s]}"></i>`).join('')}</div>
+        <div class="scroll" style="margin-top:16px"><table><thead><tr><th>Status</th><th class="r">Orders</th><th class="r">Share</th><th class="r">Order value</th></tr></thead><tbody>
+        ${STATUSES.map(s => `<tr><td><span class="pill ${s}">${STATUS_LABEL[s]}</span></td><td class="r"><b>${d.counts[s] || 0}</b></td><td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>${s === 'shipped' && d.counts.shipped ? [['In transit', d.shipDetail.in_transit], ['Out for delivery', d.shipDetail.out_for_delivery], ['Undelivered, courier could not deliver', d.shipDetail.undelivered]].map(([l, n]) => `<tr class="mut"><td style="padding-left:28px;font-size:13px">${l}</td><td class="r" style="font-size:13px">${n}</td><td></td><td></td></tr>`).join('') : ''}`).join('')}
+        <tr style="font-weight:600"><td>All orders</td><td class="r">${k.orders}</td><td class="r mut">100%</td><td class="r">${inr(Object.values(d.statusValue).reduce((a, v) => a + v, 0))}</td></tr></tbody></table></div>
+        <div class="mini"><div><span>Sales if every open order is delivered</span><b>${inr(k.salesIfDelivered)}</b></div><div><span>Sales from delivered orders only</span><b>${inr(k.salesDelivered)}</b></div><div><span>Paid on delivery (COD)</span><b>${Math.round(k.codShare)}%</b></div></div></div>
+
+      <div class="sect">Profit and trend</div>
       <div class="two">
         <div class="card"><h2>Daily profit and ad spend</h2>
           <div class="legend"><span><i style="background:var(--accent)"></i>Gross profit</span><span><i style="background:var(--bar)"></i>Ad spend</span><span><i style="background:var(--good)"></i>Net after ads</span></div>
-          <p class="mut" style="font-size:12px;margin:0 0 6px">Profit is counted on the day an order was placed, and only once it is marked Delivered or RTO. Ad spend is counted as it happens, so the line dips while orders are still on the way.</p>
           ${chart(d.daily)}
+          <p class="mut" style="font-size:12px;margin:8px 0 0">Profit counts on the day an order was placed, once it is delivered or returned. Ad spend counts as it happens, so the line dips while orders are on the way.</p>
           <div class="mini">
-            <div><span>Avg daily ad spend</span><b>${inr(k.adSpend / Math.max(1, d.span))}</b></div>
+            <div><span>Average daily ad spend</span><b>${inr(k.adSpend / Math.max(1, d.span))}</b></div>
             <div><span>Orders per day</span><b>${(k.orders / Math.max(1, d.span)).toFixed(1)}</b></div>
             <div><span>Best profit day</span><b>${(() => { const b = [...d.daily].sort((a, c) => c.gross - a.gross)[0]; return b && b.gross > 0 ? inr(b.gross) + ' <em>' + b.day.slice(5) + '</em>' : '–'; })()}</b></div>
           </div></div>
-        <div class="card"><h2>Order status</h2>
-          <table><thead><tr><th>Status</th><th class="r">Orders</th><th class="r">Share</th><th class="r">Order value</th></tr></thead><tbody>
-          ${STATUSES.map(s => `<tr><td><span class="pill ${s}">${STATUS_LABEL[s]}</span></td><td class="r"><b>${d.counts[s] || 0}</b></td>
-            <td class="r mut">${k.orders ? Math.round((d.counts[s] || 0) / k.orders * 100) : 0}%</td><td class="r">${inr(d.statusValue[s] || 0)}</td></tr>${s === 'shipped' && d.counts.shipped ? [['In transit', d.shipDetail.in_transit], ['Out for delivery', d.shipDetail.out_for_delivery], ['Undelivered (courier could not deliver)', d.shipDetail.undelivered]].map(([l, n]) => `<tr class="mut"><td style="padding-left:28px;font-size:13px">${l}</td><td class="r" style="font-size:13px">${n}</td><td></td><td></td></tr>`).join('') : ''}`).join('')}
-          <tr style="font-weight:600"><td>All orders</td><td class="r">${k.orders}</td><td class="r mut">100%</td><td class="r">${inr(Object.values(d.statusValue).reduce((a, v) => a + v, 0))}</td></tr></tbody></table>
-          <div class="mut" style="margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--fg)">By payment</div>
-          <table><tbody><tr><td>COD</td><td class="r">${d.byPayment.cod || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.cod || 0) / k.orders * 100) : 0}%</td></tr>
-            <tr><td>Prepaid</td><td class="r">${d.byPayment.prepaid || 0}</td><td class="r mut">${k.orders ? Math.round((d.byPayment.prepaid || 0) / k.orders * 100) : 0}%</td></tr></tbody></table></div>
+        <div class="card"><h2>Where the profit comes from</h2>
+          <table><tbody>
+            ${row(`Delivered orders <span class="mut">(${k.delivered})</span>`, '+' + inr(deliveredProfit), 'pos')}
+            ${row(`Returned orders <span class="mut">(${k.rto})</span>`, '-' + inr(rtoLossTotal), rtoLossTotal ? 'neg' : 'mut')}
+            ${row('Gross profit', inr(k.gross), cls(k.gross), '', true)}
+            ${row('Ad spend', '-' + inr(k.adSpend), 'neg')}
+            ${k.gstClaimed ? '' : row(`GST on ads <span class="mut">(${Math.round(k.adSpend ? k.adGst / k.adSpend * 100 : 0)}%)</span>`, '-' + inr(k.adGst), 'neg')}
+            ${k.fixed ? row('Fixed costs', '-' + inr(k.fixed), 'neg') : ''}
+            ${row('Net profit so far', inr(k.net), cls(k.net), '', true)}
+            ${row(`Open orders <span class="mut">(${open}) if delivered</span>`, '+' + inr(k.expectedPending), 'pos')}
+            ${row('Net if all open orders are delivered', inr(k.netIfDelivered), cls(k.netIfDelivered), '', true)}
+          </tbody></table>
+          <p class="mut" style="font-size:12px;margin:12px 0 0">${k.settled ? `Each delivered order earns about ${inr(k.avgDelivered)} and each return costs ${inr(k.rtoLoss)}.` : ''} Cancelled orders are left out.</p></div>
       </div>
-      ${curProduct ? '<p class="mut" style="font-size:12.5px;margin-top:22px">Bank and supplier wallet are shared by all products, so they show under All products only.</p>' : '<div class="sect">Cash</div>'}
-      <div class="three"${curProduct ? ' hidden' : ''}>
-        <div class="card"><h2>Bank movement by category</h2>${d.bankByCategory.length ? `<table><tbody>${d.bankByCategory.map(b =>
-          `<tr><td>${esc(b.category)}</td><td class="r ${b.type === 'in' ? 'pos' : 'neg'}">${b.type === 'in' ? '+' : '-'}${inr(b.amt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No bank entries yet.</div>'}</div>
+
+      <div class="sect">Sales, the way Shopify counts them</div>
+      <div class="card">
+        <div class="kpis">
+          ${tile('Gross sales', inr(ss.gross), `${ss.grossOrders} orders, before discounts`)}
+          ${tile('Discounts', '-' + inr(ss.discounts), 'On the day each order was placed')}
+          ${tile('Returns', '-' + inr(ss.returns), `${ss.returnOrders} refund${ss.returnOrders === 1 ? '' : 's'}${ss.returnsFromEarlier ? ', ' + ss.returnsFromEarlier + ' from earlier orders' : ''}, on the day refunded`, ss.returns ? 'bad' : '')}
+          ${tile('Total sales', inr(ss.net), 'Matches Shopify Analytics', 'good', spark([...ss.byDay].reverse().map(x => x.net)))}
+        </div>
+        ${ss.noRefund.orders ? `<p class="mut" style="font-size:12.5px;margin:14px 0 0"><b>${ss.noRefund.orders} cancelled order${ss.noRefund.orders === 1 ? '' : 's'} (${inr(ss.noRefund.value)}) ha${ss.noRefund.orders === 1 ? 's' : 've'} no refund in Shopify</b>, so they still count as sales here, as in Shopify's report.</p>` : ''}
+        <details style="margin-top:16px"><summary style="cursor:pointer;font-weight:600">Day by day</summary>
+          <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Date</th><th class="r">Orders</th><th class="r">Gross sales</th><th class="r">Discounts</th><th class="r">Returns that day</th><th class="r">Total sales</th></tr></thead><tbody>${ss.byDay.slice(0, 120).map(x => `
+            <tr><td>${x.day}</td><td class="r">${x.placed}</td><td class="r">${inr(x.gross)}</td><td class="r ${x.discounts ? 'neg' : 'mut'}">${x.discounts ? '-' + inr(x.discounts) : '–'}</td>
+            <td class="r ${x.returns ? 'neg' : 'mut'}">${x.returns ? '-' + inr(x.returns) + ' <span class="mut">(' + x.returnOrders + ')</span>' : '–'}</td><td class="r"><b>${inr(x.net)}</b></td></tr>`).join('')}</tbody></table></div></details>
+        ${ss.returnOrders ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Cancelled and returned orders <span class="mut" style="font-weight:400;font-size:13px">· ${Object.entries(ss.byReason).map(([r, v]) => `${REASON[r] || r} ${v.orders}`).join(', ')}</span></summary>
+          <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Order</th><th>Placed</th><th>Refunded</th><th>Reason</th><th class="r">Amount</th></tr></thead><tbody>${ss.list.map(o => `
+            <tr><td>${esc(o.name)}</td><td>${o.placedDay}</td><td>${o.refundDay}${o.placedDay !== o.refundDay ? ' <span class="mut">(later)</span>' : ''}</td>
+            <td><span class="pill ${o.reason === 'fraud' ? 'risk-high' : 'cancelled'}">${REASON[o.reason] || o.reason}</span></td><td class="r">${inr(o.total)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+      </div>
+
+      ${curProduct ? '<p class="mut" style="font-size:12.5px;margin-top:22px">Bank and supplier wallet are shared by all products, so they show under All products only.</p>' : `
+      <div class="sect">Cash</div>
+      <div class="three">
+        <div class="card"><h2>Bank movement</h2>${d.bankByCategory.length ? `<table><tbody>${d.bankByCategory.map(b => `<tr><td>${esc(b.category)}</td><td class="r ${b.type === 'in' ? 'pos' : 'neg'}">${b.type === 'in' ? '+' : '-'}${inr(b.amt)}</td></tr>`).join('')}</tbody></table>
+          <div class="mini" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><span>Balance now</span><b>${inr(k.bankBalance)}</b></div><div><span>This period in / out</span><b>${inr(k.bankIn)} / ${inr(k.bankOut)}</b></div></div>` : '<div class="empty">No bank entries yet.</div>'}</div>
         <div class="card"><h2>Orders vs bank</h2><table><tbody>
-          <tr><td>Delivered revenue (after GST)</td><td class="r">${inr(k.revenue)}</td></tr>
-          <tr><td>Money received in bank</td><td class="r">${inr(k.bankIn)}</td></tr>
-          <tr><td>Gap</td><td class="r ${cls(k.bankIn - k.revenue)}">${inr(k.bankIn - k.revenue)}</td></tr></tbody></table>
-          <p class="mut" style="font-size:12px;margin:10px 0 0">A large negative gap usually means COD remittances from the courier are still pending.</p></div>
-      </div>`;
+          ${row('Delivered revenue (after GST)', inr(k.revenue))}${row('Money received in bank', inr(k.bankIn))}${row('Gap', inr(k.bankIn - k.revenue), cls(k.bankIn - k.revenue), '', true)}</tbody></table>
+          <p class="mut" style="font-size:12px;margin:10px 0 0">A large negative gap usually means COD money from the courier has not arrived yet.</p></div>
+      </div>`}`;
     $('#demo')?.addEventListener('click', async () => { await api('/demo', { method: 'POST' }); render(); });
     bindFilterBar(el, sel => { ovSel = sel; render(); });
   },
@@ -617,9 +620,8 @@ const views = {
           <tr><td>${x.day}</td><td class="r">${x.balance === null ? '–' : inr(x.balance, 2)}</td><td class="r">${x.outstanding === null ? '–' : inr(x.outstanding, 2)}</td><td class="r">${x.payments === null ? '–' : inr(x.payments, 2)}</td><td class="r">${x.withdrawn === null ? '–' : inr(x.withdrawn, 2)}</td><td><button class="link" data-snapdel="${x.id}">Delete</button></td></tr>`).join('')}</tbody></table></div>` : snaps.length ? `<p class="mut" style="font-size:12.5px;margin:0"><button class="link" data-snapdel="${snaps[0].id}" style="color:var(--muted)">Delete this entry</button></p>` : ''}
       </div>
 
-      <div class="card" style="margin-top:22px"><h2>Payout statement from Dropship India</h2>
-        <p class="mut" style="margin:-6px 0 14px;font-size:13px">Upload the payout CSV the supplier sends. Orders it lists as <b>RTO</b> or <b>delivered</b> are marked that way in the dashboard, and the <b>final adjusted payout</b> is added to or taken from the wallet. Uploading the same file twice changes nothing.</p>
-        <div class="form" style="margin-bottom:10px"><input type="file" id="sup-file" accept=".csv,text/csv,.txt"><span id="sup-msg"></span></div>
+      <div class="card" style="margin-top:22px"><h2>Payout history from Dropship India</h2>
+        <p class="mut" style="margin:-6px 0 14px;font-size:13px">Payouts from earlier statements. New daily payouts appear in <b>Wallet activity</b> above and in the wallet balance, which is read from the Dropship India Wallet page with each refresh. No file upload or download is needed.</p>
         ${stmts.length ? `<div class="scroll"><table><thead><tr><th>Statement date</th><th>File</th><th class="r">Orders</th><th class="r">Base payout</th><th class="r">Extra hold</th><th class="r">Final adjusted payout</th><th></th></tr></thead><tbody>${stmts.map(t => `
           <tr><td>${t.date}</td><td class="mut">${esc(t.name)}</td><td class="r">${t.orders}</td><td class="r">${signed(t.base, 2)}</td><td class="r">${signed(-t.extra_hold, 2)}</td><td class="r ${cls(t.final)}"><b>${signed(t.final, 2)}</b></td>
           <td><button class="link" data-sdel-stmt="${t.id}" title="Remove this statement from the wallet. Order statuses it set stay as they are">Delete</button></td></tr>`).join('')}</tbody></table></div>`
@@ -655,28 +657,6 @@ const views = {
     el.querySelectorAll('button[data-snapdel]').forEach(b => b.onclick = async () => { await api('/supplier-snapshots/' + b.dataset.snapdel, { method: 'DELETE' }); render(); });
     el.querySelectorAll('button[data-match]').forEach(b => b.onclick = async () => { await api('/settings', { method: 'PUT', body: { supplier_adjust: Number(b.dataset.match).toFixed(2) } }); render(); });
 
-    // upload
-    const showMsg = m => {
-      const box = $('#sup-msg'); if (!box || !m) return;
-      if (!m.ok) { box.className = 'neg'; box.textContent = m.error || 'The file could not be read.'; return; }
-      box.className = m.duplicate ? 'mut' : 'pos';
-      if (m.duplicate) { box.textContent = m.message; return; }
-      const parts = [`Imported ${m.orders} order${m.orders === 1 ? '' : 's'} (${Object.entries(m.byStatus).map(([k, v]) => v + ' ' + k).join(', ')}).`];
-      const marked = Object.entries(m.marked).filter(([, v]) => v).map(([k, v]) => `${v} as ${k === 'rto' ? 'RTO' : k}`);
-      parts.push(marked.length ? `Marked in the dashboard: ${marked.join(', ')}.` : 'No order statuses needed changing.');
-      if (m.alreadyCorrect) parts.push(`${m.alreadyCorrect} already had that status.`);
-      parts.push(`Payout ${signed(m.summary.final, 2)} added to the wallet.`);
-      if (m.notFound.length) parts.push(`Not found in the dashboard: ${m.notFound.join(', ')}.`);
-      if (m.unknownStatuses.length) parts.push(`Statuses I did not act on: ${m.unknownStatuses.join(', ')}.`);
-      box.textContent = parts.join(' ');
-    };
-    showMsg(supMsg);
-    $('#sup-file').onchange = async e => {
-      const f = e.target.files[0]; if (!f) return;
-      const box = $('#sup-msg'); box.className = 'mut'; box.textContent = 'Reading…';
-      supMsg = await api('/supplier/import', { method: 'POST', body: { name: f.name, text: await f.text() } });
-      render();
-    };
     el.querySelectorAll('button[data-sdel-stmt]').forEach(b => b.onclick = async () => { supMsg = null; await api('/supplier/statements/' + b.dataset.sdelStmt, { method: 'DELETE' }); render(); });
     el.querySelectorAll('button[data-tip]').forEach(b => b.onclick = async () => { await api('/settings', { method: 'PUT', body: { supplier_rto_charge: b.dataset.val, return_ship: b.dataset.val } }); render(); });
 
@@ -704,33 +684,34 @@ const views = {
 
   async products(el) {
     const d = await api('/products-tracker?' + filterQuery(prodSel));
-    const t = d.total, cfg = d.config, un = d.rows.find(r => r.name === 'Unassigned');
+    const t = d.total, cfg = d.config, un = d.rows.find(r => r.name === 'Unassigned'), cfgRto = (await api('/settings')).return_ship;
     const m = (l, v, c = '') => `<div class="kpi ${c}"><div class="k">${l}</div><div class="v">${v}</div></div>`;
     const card = r => `<div class="card" style="margin-top:18px;${r.name === 'Unassigned' ? 'border-left:4px solid var(--bad)' : ''}"><h2>${esc(r.name)} <span class="mut" style="font-weight:400;font-size:13px">· ${r.orders} orders, ${r.cancelled} cancelled</span></h2>
       <div class="kpis" style="margin:12px 0">
         ${m('Delivered', r.delivered)}${m('Returned (RTO)', r.rto)}${m('On the way', r.transit)}${m('RTO rate', r.rtoRate === null ? '–' : r.rtoRate.toFixed(0) + '%', r.rtoRate > 30 ? 'bad' : '')}
-        ${m('Sales (not cancelled)', inr(r.sales))}${m('Ad spend + GST', inr(r.adTotal))}${m('Cost per order', r.cpa === null ? '–' : inr(r.cpa))}${m('ROAS', r.roas === null ? '–' : r.roas.toFixed(1) + 'x')}
+        ${m('Sales (not cancelled)', inr(r.sales))}${m('Ad spend', inr(r.adSpend))}${m('Cost per order', r.cpa === null ? '–' : inr(r.cpa))}${m('ROAS', r.roas === null ? '–' : r.roas.toFixed(1) + 'x')}
         ${m('Net profit so far', inr(r.net), r.net >= 0 ? 'good' : 'bad')}${m('Net if all on the way are delivered', inr(r.netIfDelivered), r.netIfDelivered >= 0 ? 'good' : 'bad')}
       </div>
       ${r.campaigns.length ? `<table><thead><tr><th>Ad campaign</th><th class="r">Spend (before GST)</th></tr></thead><tbody>${r.campaigns.map(c => `<tr><td>${esc(c.campaign)}</td><td class="r">${inr(c.spend)}</td></tr>`).join('')}</tbody></table>` : ''}
       ${r.name === 'Unassigned' ? `<p class="mut" style="margin:10px 0 0">${r.titles.length ? 'Orders with no product match: ' + r.titles.map(x => esc(x.title) + ' (' + x.orders + ')').join(', ') + '. ' : ''}Add a keyword for these under "Products and keywords" below to move them to a product.</p>` : ''}</div>`;
     el.innerHTML = filterBar(prodSel, filterLabel(prodSel)) + `
       <div class="sect">All products</div>
-      <div class="kpis">${m('Orders', t.orders)}${m('Delivered / RTO', t.delivered + ' / ' + t.rto)}${m('Sales', inr(t.sales))}${m('Ad spend + GST', inr(t.adTotal))}
+      <div class="kpis">${m('Orders', t.orders)}${m('Delivered / RTO', t.delivered + ' / ' + t.rto)}${m('Sales', inr(t.sales))}${m('Ad spend', inr(t.adSpend))}
         ${m('Net profit so far', inr(t.net), t.net >= 0 ? 'good' : 'bad')}${m('Net if all on the way are delivered', inr(t.netIfDelivered), t.netIfDelivered >= 0 ? 'good' : 'bad')}</div>
+      ${d.gstClaim ? '' : `<p class="mut" style="font-size:12.5px;margin:10px 0 0">Net profit also takes off ${inr(t.adGst)} GST on ads. Ad spend and cost per order above are before GST, as in Ads Manager.</p>`}
       <p class="mut" style="font-size:12.5px;margin:10px 0 0">The product cards add up to these totals, so nothing is counted twice. Orders the supplier cancelled are not counted as sales.</p>
       ${d.unlinked.length ? `<p class="mut" style="font-size:12.5px;margin:6px 0 0">Left out: ${d.unlinked.length} ad campaign${d.unlinked.length === 1 ? '' : 's'} not linked to a product (${inr(d.unlinked.reduce((a, c) => a + c.spendGst, 0))} with GST): ${d.unlinked.map(c => esc(c.campaign)).join(', ')}.</p>` : ''}
       ${un && un.orders ? card(un) : ''}${d.rows.filter(r => r.name !== 'Unassigned').map(card).join('')}
       <details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600;font-size:15px">Products and keywords <span class="mut" style="font-weight:400;font-size:13px">· add each new product once</span></summary>
-        <p class="mut" style="font-size:13px;margin:10px 0">An order joins a product when its Shopify title contains one of the title keywords. An ad campaign joins when its name contains a campaign keyword. The first matching product wins. Separate keywords with commas. Cost is what you pay the supplier per unit; leave empty to use the cost from Settings.</p>
-        <div class="scroll"><table><thead><tr><th>Product</th><th>Order title keywords</th><th>Campaign keywords</th><th>Cost ₹</th></tr></thead><tbody>
-        ${[...cfg.products, { name: '', titles: [], campaigns: [], cost: null }].map(p => `<tr class="pg"><td><input class="pn" value="${esc(p.name)}" placeholder="New product"></td><td><input class="pt" value="${esc(p.titles.join(', '))}"></td><td><input class="pc" value="${esc(p.campaigns.join(', '))}"></td><td><input class="pk" type="number" style="width:90px" value="${p.cost ?? ''}"></td></tr>`).join('')}</tbody></table></div>
+        <p class="mut" style="font-size:13px;margin:10px 0">An order joins a product when its Shopify title contains one of the title keywords. An ad campaign joins when its name contains a campaign keyword. The first matching product wins. Separate keywords with commas. Cost is what you pay the supplier per unit; leave it empty to use the cost from Settings. RTO fee is what the supplier charges when this product comes back; leave it empty to use the Settings fee.</p>
+        <div class="scroll"><table><thead><tr><th>Product</th><th>Order title keywords</th><th>Campaign keywords</th><th>Cost ₹</th><th>RTO fee ₹</th></tr></thead><tbody>
+        ${[...cfg.products, { name: '', titles: [], campaigns: [], cost: null, rto: null }].map(p => `<tr class="pg"><td><input class="pn" value="${esc(p.name)}" placeholder="New product"></td><td><input class="pt" value="${esc(p.titles.join(', '))}"></td><td><input class="pc" value="${esc(p.campaigns.join(', '))}"></td><td><input class="pk" type="number" style="width:90px" value="${p.cost ?? ''}"></td><td><input class="pr" type="number" style="width:90px" placeholder="${cfgRto}" value="${p.rto ?? ''}"></td></tr>`).join('')}</tbody></table></div>
         <p style="margin:12px 0 0"><button id="pg-save">Save</button></p></details>`;
     bindFilterBar(el, sel => { prodSel = sel; render(); });
     $('#pg-save').onclick = async () => {
       const split = v => v.split(',').map(x => x.trim()).filter(Boolean);
-      const products = [...el.querySelectorAll('tr.pg')].map(r => ({ name: r.querySelector('.pn').value.trim(), titles: split(r.querySelector('.pt').value), campaigns: split(r.querySelector('.pc').value), cost: r.querySelector('.pk').value }));
-      await api('/products-tracker/config', { method: 'PUT', body: { products } }); render();
+      const products = [...el.querySelectorAll('tr.pg')].map(r => ({ name: r.querySelector('.pn').value.trim(), titles: split(r.querySelector('.pt').value), campaigns: split(r.querySelector('.pc').value), cost: r.querySelector('.pk').value, rto: r.querySelector('.pr').value }));
+      await api('/products-tracker/config', { method: 'PUT', body: { products } }); window.__prodNames = null; render();
     };
   },
 
@@ -825,9 +806,10 @@ const views = {
         <label>Confirmation<select id="r-conf"><option value="">All</option>${CONFIRM.map(([v, l]) => `<option value="${v || 'none'}" ${riskFilter.confirm === (v || 'none') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label>Search<input id="r-q" placeholder="Name, phone, address, pincode, IP" value="${esc(riskFilter.q)}"></label>
         <span class="mut" id="r-count"></span></div>
-        <div class="mut" style="font-size:12px;margin:0 0 10px">${pin.loaded ? `Pincode check is on: orders are checked against ${pin.rows.toLocaleString('en-IN')} India Post offices.` : `<b>Pincode check is off.</b> The India Post directory is not loaded${pin.error ? ' (' + esc(pin.error) + ')' : ''}, so pincode, state and city are not being checked.`}</div>
+        <div class="mut" style="font-size:12px;margin:0 0 10px">${pin.loaded ? `Pincode check is on: orders are checked against ${pin.rows.toLocaleString('en-IN')} India Post offices.` : `<b>Pincode check is off.</b> The India Post directory is not loaded${pin.error ? ' (' + esc(pin.error) + ')' : ''}, so pincode, state and city are not being checked.`}${(pin.couriers || []).some(c => c.loaded) ? ` Courier check is on: ${pin.couriers.filter(c => c.loaded).map(c => `${esc(c.label)} (${c.rows.toLocaleString('en-IN')} pincodes)`).join(', ')}.` : ' Courier check is off: add <code>data/delhivery-pincodes.json</code> and/or <code>data/ekart-pincodes.csv</code> to check Delhivery and Ekart coverage.'}${(pin.couriers || []).filter(c => c.error).map(c => ` <b>${esc(c.error)}</b>`).join('')}</div>
         <div class="scroll" id="r-table"></div>
         <p class="mut" style="font-size:12px;margin:12px 0 0">Risk flags are hints for orders worth a call or WhatsApp confirmation before shipping. They are not proof of fraud: a flag can be a genuine repeat customer or a typing mistake. Mark each order after you call, and block customers who turn out to be fake.</p></div>
+      <div class="card" style="margin-top:16px" id="pp-card"></div>
       <div class="card" style="margin-top:16px"><h2>Blocklist</h2><div class="scroll">${blocks.length ? `<table><thead><tr><th>Type</th><th>Blocked</th><th>Note</th><th>Added</th><th></th></tr></thead><tbody>${blocks.map(b => `
         <tr><td>${esc(b.kind)}</td><td>${esc(b.label || b.value)}</td><td class="mut" style="white-space:normal">${esc(b.note || '')}</td><td class="mut">${(b.created || '').slice(0, 10)}</td><td><button class="link" data-unblock="${b.id}">Unblock</button></td></tr>`).join('')}</tbody></table>`
         : '<div class="empty">No one is blocked. Use Block on an order to add its phone and address here. Later orders that match are flagged.</div>'}</div></div>`;
@@ -856,6 +838,50 @@ const views = {
       el.querySelectorAll('button[data-block]').forEach(b => b.onclick = async () => { await api('/risk/block', { method: 'POST', body: { id: b.dataset.block } }); render(); });
     };
     $('#r-level').onchange = draw; $('#r-conf').onchange = draw; $('#r-q').oninput = draw; draw();
+
+    // ---- Convert COD to prepaid: WhatsApp the customers whose COD order has not shipped yet ----
+    {
+      const MSG_KEY = 'wv_prepaid_msg', SENT_KEY = 'wv_prepaid_sent';
+      const DEFAULT_MSG = "Hi {name}, thanks for your order {order} ({product}). It is booked as Cash on Delivery.\nPay online instead and save ₹{saving}: your total drops to ₹{prepaid}. Reply PAY and I will send you a secure UPI payment link.";
+      const store = {
+        get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage blocked: the setting just won't be remembered */ } }
+      };
+      // Same as the active store codes: PREPAID10 (10%) on the Touch-Up Roller, PREPAID100 (Rs 100 off) on everything else
+      const saving = o => ((o.product || '').toLowerCase().includes('touch-up roller') ? Math.round(o.total * 0.1) : 100);
+      const phone10 = p => { let d = String(p || '').replace(/\D/g, ''); if (d.length === 12 && d.startsWith('91')) d = d.slice(2); else if (d.length === 11 && d.startsWith('0')) d = d.slice(1); return /^[6-9]\d{9}$/.test(d) ? d : ''; };
+      let sent = new Set(); try { sent = new Set(JSON.parse(store.get(SENT_KEY, '[]'))); } catch { /* start fresh */ }
+      const list = all.filter(o => o.payment === 'cod' && o.status === 'new' && phone10(o.phone))
+        .sort((a, b) => LV[b.risk.level] - LV[a.risk.level] || String(b.created_at).localeCompare(String(a.created_at)));
+      const fill = (o, tpl) => tpl.replace(/\{name\}/g, (o.customer || '').trim().split(/\s+/)[0] || 'there').replace(/\{order\}/g, o.name)
+        .replace(/\{product\}/g, o.product || 'your order').replace(/\{saving\}/g, saving(o)).replace(/\{prepaid\}/g, Math.max(0, Math.round(o.total - saving(o))));
+      const card = $('#pp-card');
+      const drawPP = () => {
+        const tpl = store.get(MSG_KEY, DEFAULT_MSG);
+        const left = list.filter(o => !sent.has(o.id)).length;
+        card.innerHTML = `<h2>Convert COD to prepaid</h2>
+          <p class="mut" style="margin:0 0 10px">COD orders that have not shipped yet. Your COD orders come back far more often than prepaid ones, so a prepaid offer sent now is worth a message. Click WhatsApp to open the chat with the message filled in, then send the payment link when the customer replies PAY. Higher risk orders are listed first.</p>
+          <label style="display:block;margin-bottom:10px">Message <span class="mut" style="font-size:12px">(placeholders: {name} {order} {product} {saving} {prepaid})</span>
+            <textarea id="pp-msg" rows="4" style="width:100%;box-sizing:border-box">${esc(tpl)}</textarea></label>
+          <div class="mut" style="font-size:12px;margin:0 0 8px">${list.length} unshipped COD order${list.length === 1 ? '' : 's'} with a valid phone in this range, ${left} not messaged yet.${sent.size ? ' <button class="link" id="pp-reset">Clear "messaged" marks</button>' : ''}</div>
+          <div class="scroll">${list.length ? `<table><thead><tr><th>Order</th><th>Customer</th><th>Product</th><th class="r">COD total</th><th class="r">Prepaid total</th><th>Risk</th><th></th></tr></thead><tbody>${list.slice(0, 200).map(o => `
+            <tr><td>${esc(o.name)}<div class="mut" style="font-size:12px">${o.day}</div></td>
+            <td><b>${esc(o.customer || '–')}</b><div class="mut" style="font-size:12px">${esc(o.phone)}</div></td>
+            <td style="white-space:normal;min-width:180px">${esc(o.product || '–')}</td>
+            <td class="r">${inr(o.total)}</td><td class="r"><b>${inr(Math.max(0, o.total - saving(o)))}</b><div class="mut" style="font-size:12px">save ${inr(saving(o))}</div></td>
+            <td>${o.risk.level !== 'none' ? `<span class="pill risk-${o.risk.level}">${LABEL[o.risk.level]}</span>` : '<span class="mut">No flags</span>'}</td>
+            <td>${sent.has(o.id) ? '<span class="mut">Messaged</span> ' : ''}<button data-pp="${esc(o.id)}">${sent.has(o.id) ? 'Again' : 'WhatsApp'}</button></td></tr>`).join('')}</tbody></table>`
+            : '<div class="empty">No unshipped COD orders with a phone number in this range.</div>'}</div>`;
+        $('#pp-msg').oninput = e => store.set(MSG_KEY, e.target.value);
+        const reset = $('#pp-reset'); if (reset) reset.onclick = () => { sent = new Set(); store.set(SENT_KEY, '[]'); drawPP(); };
+        card.querySelectorAll('button[data-pp]').forEach(b => b.onclick = () => {
+          const o = list.find(x => x.id === b.dataset.pp); if (!o) return;
+          window.open(`https://wa.me/91${phone10(o.phone)}?text=${encodeURIComponent(fill(o, $('#pp-msg').value))}`, '_blank', 'noopener');
+          sent.add(o.id); store.set(SENT_KEY, JSON.stringify([...sent])); drawPP();
+        });
+      };
+      drawPP();
+    }
   },
 
   async ads(el) {
@@ -909,7 +935,7 @@ const views = {
         <div class="form" style="margin:0"><input type="file" id="mcsv" accept=".csv,text/csv,.txt"><span id="mmsg" class="mut"></span></div></div>
       ${!has ? `<div class="banner"><span>Only spend is stored so far. Import a CSV that includes impressions and clicks to see CTR, CPC, CPM and ROAS.</span></div>` : ''}
       <div class="kpis">
-        ${tile('Spend', rs(t.spend), `+ ${rs(t.gst_amount)} GST (${d.gst}%) = ${rs(t.total_cost)} total · ${rangeLabel}`)}
+        ${tile('Spend', rs(t.spend), `${d.gstClaim ? '' : `+ ${rs(t.gst_amount)} GST (${d.gst}%) = ${rs(t.total_cost)} total · `}${rangeLabel}`)}
         ${tile('Impressions', f(t.impressions), T.freq ? `Frequency ${f(T.freq, 2)}` : 'Not in import')}
         ${tile('CTR (link)', T.ctr === null ? '–' : f(T.ctr, 2) + '%', `${f(t.clicks)} link clicks`)}
         ${tile('CPC', rs(T.cpc, 2), 'Spend per link click')}
@@ -921,11 +947,22 @@ const views = {
       <div class="card" style="margin-bottom:16px"><h2>Daily spend and Meta-reported purchase value</h2>
         <div class="legend"><span><i style="background:var(--bar)"></i>Spend</span><span><i style="background:var(--good)"></i>Purchase value</span></div>${svg}
         <p class="mut" style="font-size:12px;margin:8px 0 0">Meta ROAS comes from Meta's own attribution. Blended ROAS uses your actual Shopify sales, so it includes orders Meta didn't claim and counts COD orders that never arrived. Compare the two.</p></div>
-      <div class="card" style="margin-bottom:16px"><h2>Day by day</h2><div class="scroll">${d.daily.length ? `<table><thead><tr><th>Date</th><th class="r">Spend</th><th class="r">GST ${d.gst}%</th><th class="r">Total cost</th><th class="r">Impr.</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">CPM</th><th class="r">Purchases</th><th class="r">Cost / purchase</th><th class="r">ROAS</th></tr></thead><tbody>${[...d.daily].reverse().map(r => { const m = calc(r); return `
-        <tr><td>${r.day}</td><td class="r">${rs(r.spend)}</td><td class="r mut">${rs(r.gst_amount, 2)}</td><td class="r">${rs(r.total_cost)}</td><td class="r">${f(r.impressions)}</td><td class="r">${m.ctr === null ? '–' : f(m.ctr, 2) + '%'}</td><td class="r">${rs(m.cpc, 2)}</td><td class="r">${rs(m.cpm, 2)}</td><td class="r">${f(r.purchases)}</td><td class="r">${rs(m.cpp, 2)}</td><td class="r"><b>${m.roas === null ? '–' : f(m.roas, 2) + 'x'}</b></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">No Meta data for this period.</div>'}</div></div>
-      <div class="card"><h2>By campaign</h2><div class="scroll">${d.campaigns.length ? `<table><thead><tr><th>Campaign</th><th class="r">Spend</th><th class="r">GST ${d.gst}%</th><th class="r">Total cost</th><th class="r">Impr.</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">CPM</th><th class="r">Purchases</th><th class="r">Cost / purchase</th><th class="r">ROAS</th></tr></thead><tbody>${d.campaigns.map(c => { const m = calc(c); return `
-        <tr><td>${esc(c.campaign)}</td><td class="r">${rs(c.spend)}</td><td class="r mut">${rs(c.gst_amount, 2)}</td><td class="r">${rs(c.total_cost)}</td><td class="r">${f(c.impressions)}</td><td class="r">${m.ctr === null ? '–' : f(m.ctr, 2) + '%'}</td><td class="r">${rs(m.cpc, 2)}</td><td class="r">${rs(m.cpm, 2)}</td><td class="r">${f(c.purchases)}</td><td class="r">${rs(m.cpp, 2)}</td><td class="r"><b>${m.roas === null ? '–' : f(m.roas, 2) + 'x'}</b></td></tr>`; }).join('')}
-        <tr style="font-weight:600"><td>Total</td><td class="r">${rs(t.spend)}</td><td class="r">${rs(t.gst_amount, 2)}</td><td class="r">${rs(t.total_cost)}</td><td class="r">${f(t.impressions)}</td><td class="r">${T.ctr === null ? '–' : f(T.ctr, 2) + '%'}</td><td class="r">${rs(T.cpc, 2)}</td><td class="r">${rs(T.cpm, 2)}</td><td class="r">${f(t.purchases)}</td><td class="r">${rs(T.cpp, 2)}</td><td class="r">${T.roas === null ? '–' : f(T.roas, 2) + 'x'}</td></tr></tbody></table>` : '<div class="empty">No Meta data in this range.</div>'}</div></div>`;
+      <div class="card" style="margin-bottom:16px"><h2>Day by day</h2><div class="scroll">${d.daily.length ? `<table><thead><tr><th>Date</th><th class="r">Spend</th>${d.gstClaim ? '' : `<th class="r">GST ${d.gst}%</th><th class="r">Total cost</th>`}<th class="r">Impr.</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">CPM</th><th class="r">Purchases</th><th class="r">Cost / purchase</th><th class="r">ROAS</th></tr></thead><tbody>${[...d.daily].reverse().map(r => { const m = calc(r); return `
+        <tr><td>${r.day}</td><td class="r">${rs(r.spend)}</td>${d.gstClaim ? '' : `<td class="r mut">${rs(r.gst_amount, 2)}</td><td class="r">${rs(r.total_cost)}</td>`}<td class="r">${f(r.impressions)}</td><td class="r">${m.ctr === null ? '–' : f(m.ctr, 2) + '%'}</td><td class="r">${rs(m.cpc, 2)}</td><td class="r">${rs(m.cpm, 2)}</td><td class="r">${f(r.purchases)}</td><td class="r">${rs(m.cpp, 2)}</td><td class="r"><b>${m.roas === null ? '–' : f(m.roas, 2) + 'x'}</b></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">No Meta data for this period.</div>'}</div></div>
+      <div class="card"><h2>By campaign</h2><div class="scroll">${d.campaigns.length ? `<table><thead><tr><th>Campaign</th><th class="r">Spend</th>${d.gstClaim ? '' : `<th class="r">GST ${d.gst}%</th><th class="r">Total cost</th>`}<th class="r">Impr.</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">CPM</th><th class="r">Purchases</th><th class="r">Cost / purchase</th><th class="r">ROAS</th></tr></thead><tbody>${d.campaigns.map(c => { const m = calc(c); return `
+        <tr><td>${esc(c.campaign)}</td><td class="r">${rs(c.spend)}</td>${d.gstClaim ? '' : `<td class="r mut">${rs(c.gst_amount, 2)}</td><td class="r">${rs(c.total_cost)}</td>`}<td class="r">${f(c.impressions)}</td><td class="r">${m.ctr === null ? '–' : f(m.ctr, 2) + '%'}</td><td class="r">${rs(m.cpc, 2)}</td><td class="r">${rs(m.cpm, 2)}</td><td class="r">${f(c.purchases)}</td><td class="r">${rs(m.cpp, 2)}</td><td class="r"><b>${m.roas === null ? '–' : f(m.roas, 2) + 'x'}</b></td></tr>`; }).join('')}
+        <tr style="font-weight:600"><td>Total</td><td class="r">${rs(t.spend)}</td>${d.gstClaim ? '' : `<td class="r">${rs(t.gst_amount, 2)}</td><td class="r">${rs(t.total_cost)}</td>`}<td class="r">${f(t.impressions)}</td><td class="r">${T.ctr === null ? '–' : f(T.ctr, 2) + '%'}</td><td class="r">${rs(T.cpc, 2)}</td><td class="r">${rs(T.cpm, 2)}</td><td class="r">${f(t.purchases)}</td><td class="r">${rs(T.cpp, 2)}</td><td class="r">${T.roas === null ? '–' : f(T.roas, 2) + 'x'}</td></tr></tbody></table>` : '<div class="empty">No Meta data in this range.</div>'}</div></div>`;
+    { // spend outside Meta (Google ads, one-off charges), kept here so there is one place for all ad spend
+      const all = await api('/ads?days=0'), man = all.filter(r => r.source === 'manual');
+      const box = document.createElement('details'); box.className = 'card'; box.style.marginTop = '18px';
+      box.innerHTML = `<summary style="cursor:pointer;font-weight:600;font-size:15px">Spend outside Meta <span class="mut" style="font-weight:400;font-size:13px">· ${man.length} manual entr${man.length === 1 ? 'y' : 'ies'}, add Google ads or one-off charges</span></summary>
+        <form class="form" id="adform" style="margin-top:12px"><label>Date<input type="date" id="a-day" value="${today()}"></label><label>Campaign<input id="a-camp" placeholder="e.g. Google Search"></label>
+          <label>Spend (₹)<input id="a-spend" type="number" min="0" step="any" required></label><button class="primary">Add</button></form>
+        ${man.length ? `<div class="scroll"><table><thead><tr><th>Date</th><th>Campaign</th><th class="r">Spend</th><th></th></tr></thead><tbody>${man.map(r => `<tr><td>${r.day}</td><td>${esc(r.campaign)}</td><td class="r">${inr(r.spend)}</td><td><button class="link" data-d="${r.day}" data-c="${esc(r.campaign)}">Delete</button></td></tr>`).join('')}</tbody></table></div>` : ''}`;
+      el.appendChild(box);
+      box.querySelector('#adform').onsubmit = async e => { e.preventDefault(); await api('/ads', { method: 'POST', body: { day: box.querySelector('#a-day').value, campaign: box.querySelector('#a-camp').value, spend: box.querySelector('#a-spend').value } }); render(); };
+      box.querySelectorAll('button[data-d]').forEach(b => b.onclick = async () => { await api(`/ads?day=${b.dataset.d}&campaign=${encodeURIComponent(b.dataset.c)}`, { method: 'DELETE' }); render(); });
+    }
     bindFilterBar(el, s => { metaSel = s; render(); });
     $('#mcsv').onchange = e => { const file = e.target.files[0]; if (file) importCsvFile(file, $('#mmsg'), render); };
   },
@@ -983,8 +1020,8 @@ const views = {
       <div class="card" style="margin-bottom:16px"><h2>Cost assumptions</h2><div class="fields">
         ${F('default_cost', 'Default supplier cost (₹)')}${F('gst', 'GST rate (%)')}${F('price_incl_gst', 'Price includes GST (1 = yes, 0 = no)', '1')}
         ${F('ship', 'Forward courier (₹)')}${F('return_ship', 'Return courier (₹)')}${F('pack', 'Packaging (₹)')}
-        ${F('cod_fee', 'COD fee, fixed (₹)')}${F('cod_fee_pct', 'COD fee, % of order amount')}${F('gateway_pct', 'Gateway fee, prepaid (%)')}${F('platform_pct', 'Platform fee (%)')}
-        ${F('ad_gst', 'GST on ad spend (%)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}${F('meta_opening_balance', 'Meta ad balance before tracking (₹)')}${F('supplier_rto_charge', 'Supplier charge per RTO order (₹)')}${F('supplier_auto_rto', 'Take RTO charge off the wallet automatically (1 = yes, 0 = no)', '1')}
+        ${F('cod_fee', 'COD fee, fixed (₹)')}${F('cod_fee_pct', 'COD fee, % of order amount')}${F('msg_fee', 'WhatsApp message cost per order (₹)')}${F('gateway_pct', 'Gateway fee, prepaid (%)')}${F('platform_pct', 'Platform fee (%)')}
+        ${F('ad_gst', 'GST on ad spend (%)')}${F('ad_gst_claim', 'GST on ads comes back as tax credit (1 = yes, 0 = no)')}${F('fixed_monthly', 'Fixed monthly costs (₹)')}${F('opening_balance', 'Bank opening balance (₹)')}${F('meta_opening_balance', 'Meta ad balance before tracking (₹)')}${F('supplier_rto_charge', 'Supplier charge per RTO order (₹)')}${F('supplier_auto_rto', 'Take RTO charge off the wallet automatically (1 = yes, 0 = no)', '1')}
       </div><div class="form" style="margin:14px 0 0"><button class="primary" id="save">Save</button><span class="mut" id="saved"></span></div></div>
       <div class="card"><h2>Supplier cost per product</h2>${prods.length ? `<div class="scroll"><table><thead><tr><th>Product</th><th class="r">Orders</th><th class="r">Cost per unit (₹)</th></tr></thead><tbody>${prods.map(p =>
         `<tr><td>${esc(p.title)}</td><td class="r">${p.orders}</td><td class="r"><input data-p="${esc(p.title)}" type="number" step="any" style="width:100px" placeholder="${s.default_cost}" value="${p.cost ?? ''}"></td></tr>`).join('')}</tbody></table></div>
@@ -1002,13 +1039,14 @@ const views = {
 };
 
 async function render() {
-  const tab = (location.hash.slice(1).split('?')[0] || 'overview');
+  let tab = (location.hash.slice(1).split('?')[0] || 'overview');
+  if (tab === 'ads') tab = 'meta';   // manual ad spend now lives at the bottom of Meta Ads
   document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + tab));
   const PAGES = { overview: ['Overview', 'Profit, sales, ads and cash at a glance'], orders: ['Orders', 'Every Shopify order with its status and profit'],
     products: ['Products', 'Orders, returns, ad spend and profit for each product'],
     tracking: ['Live tracking', 'Where every order is: placed, shipped by Dropship India, delivered or RTO'],
     risk: ['Risk check', 'Spot suspicious orders before you ship them'], ads: ['Ad spend', 'Daily spend and manual ad entries'],
-    meta: ['Meta Ads', 'Performance from Ads Manager: reach, clicks, cost and returns'], supplier: ['Supplier', 'Wallet, charges and payout statements from Dropship India'],
+    meta: ['Meta Ads', 'Performance from Ads Manager: reach, clicks, cost and returns'], supplier: ['Supplier', 'Wallet, outstanding balance and payouts from Dropship India'],
     bank: ['Bank', 'Money in and out, Meta ad funds and supplier wallet'],
     settings: ['Settings', 'Connections, cost assumptions and product costs'], calculator: ['Profit calculator', 'Work out profit from orders placed, delivered and returned'] };
   const pg = PAGES[tab] || PAGES.overview;
@@ -1018,8 +1056,8 @@ async function render() {
   $('#syncnote').textContent = l ? 'Last sync ' + new Date(l).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
   $('#range').style.display = ['ads'].includes(tab) ? '' : 'none';
   { // product selector: list from the Products tab; only the tabs that can be split by product show it
-    const g = await fetch('/api/products-tracker/config', { method: 'GET' }).catch(() => null);
-    const names = ((g && g.ok ? await g.json().catch(() => ({})) : {}).products || []).map(p => p.name);
+    if (!window.__prodNames) { const g = await fetch('/api/products-tracker/config').catch(() => null); window.__prodNames = ((g && g.ok ? await g.json().catch(() => ({})) : {}).products || []).map(p => p.name); }
+    const names = window.__prodNames;
     const sel = $('#prod'); if (curProduct && !names.includes(curProduct)) curProduct = '';
     sel.innerHTML = '<option value="">All products</option>' + names.map(n => `<option value="${esc(n)}"${n === curProduct ? ' selected' : ''}>${esc(n)}</option>`).join('');
     sel.onchange = () => { curProduct = sel.value; try { localStorage.setItem('pd_product', curProduct); } catch { /* ignore */ } render(); };

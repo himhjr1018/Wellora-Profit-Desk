@@ -17,6 +17,9 @@ export function scopeFor(name) {
     campaign: c => firstMatch(c, 'campaigns')?.name === name
   };
 }
+// Supplier cost per unit for an order title: the cost set on its product (Products tab), if any
+export const groupCost = title => firstMatch(title, 'titles')?.cost ?? null;
+export const groupRto = title => firstMatch(title, 'titles')?.rto ?? null;
 export const filterOrders = (rows, name, key = 'product') => { const sc = scopeFor(name); return sc ? rows.filter(o => sc.order(o[key])) : rows; };
 // SQL for ad_spend rows of the chosen product (all products when none is chosen)
 export function campaignWhere(name) {

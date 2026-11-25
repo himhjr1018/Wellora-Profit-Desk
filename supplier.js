@@ -162,7 +162,7 @@ export function importWallet(b) {
   let added = 0;
   for (const t of (b.txns || [])) {
     const kind = /recharge/i.test(t.description) ? 'recharge' : /payout/i.test(t.description) ? 'payout' : 'other';
-    added += Number(ins.run(String(t.at), kind, String(t.description), String(t.status || ''), Number(t.amount), now).changes);
+    added += Number(ins.run(String(t.at), kind, String(t.description), String(t.status || ''), Math.abs(Number(t.amount)), now).changes);   // the panel may show a debit as a negative number; store amounts as positive so one payout is never listed twice
   }
   db.prepare('INSERT INTO supplier_snapshots(day,balance,outstanding,payments,withdrawn,note,created) VALUES(?,?,?,?,?,?,?)')
     .run(day, num(b.balance), num(b.outstanding), num(b.payments), num(b.withdrawn), 'Read from the Dropship India Wallet page', now);

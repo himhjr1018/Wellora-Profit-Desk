@@ -6,12 +6,13 @@ import { summary, listOrders } from './summary.js';
 import { syncAll, connections, lastSyncs, loadDemo, clearDemo, metaApp, metaAuthUrl, metaFinishAuth, metaStatus, metaRedirect } from './sync.js';
 import { randomBytes } from 'node:crypto';
 import { pincodeStatus } from './pincodes.js';
-import { listRisk, setConfirm, blockOrder, blocklist } from './risk.js';
+import { listRisk, setConfirm, blockOrder, blocklist, riskByOrder } from './risk.js';
 import { buildXlsx } from './xlsx.js';
 import { importSupplierCsv, statements, supplierOrders, deleteStatement, importPanel, panelRows, importWallet, walletTxns } from './supplier.js';
 import { listTracking } from './tracking.js';
 import { productTracker, saveGroups } from './products.js';
 import { campaignWhere, loadGroups } from './scope.js';
+import { healthCheck } from './health.js';
 
 let metaState = null; // one-time value that ties the Meta login back to this app
 
@@ -29,6 +30,9 @@ const readBody = req => new Promise(resolve => {
   req.on('data', c => (b += c));
   req.on('end', () => { try { resolve(JSON.parse(b || '{}')); } catch { resolve({}); } });
 });
+// The Orders tab only needs these columns. Leaving out addresses, e-mails and refund data keeps the page small as orders grow.
+const SLIM = ['id', 'name', 'day', 'created_at', 'customer', 'phone', 'province', 'product', 'payment', 'qty', 'total', 'status', 'manual', 'profit', 'revenue', 'state'];
+const slim = rows => rows.map(o => Object.fromEntries(SLIM.map(k => [k, o[k]])));
 const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const validDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : todayIST();
 
@@ -38,8 +42,9 @@ async function api(req, res, url) {
 
   if (p === '/api/summary' && m === 'GET') return send(res, 200, summary(num(q.get('days') ?? 30), q.get('from') || '', q.get('to') || '', q.get('product') || ''));
 
+  if (p === '/api/health' && m === 'GET') return send(res, 200, healthCheck());
   if (p === '/api/orders' && m === 'GET')
-    return send(res, 200, listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '', from: q.get('from') || '', to: q.get('to') || '', product: q.get('product') || '' }));
+    return send(res, 200, slim(listOrders({ days: num(q.get('days') ?? 30), status: q.get('status') || '', q: q.get('q') || '', from: q.get('from') || '', to: q.get('to') || '', product: q.get('product') || '' })));
 
   // Excel export of the orders currently shown (same filters as the Orders tab)
   if (p === '/api/orders/export' && m === 'GET') {
@@ -215,7 +220,7 @@ async function api(req, res, url) {
     const gst = getSettings().ad_gst;
     const withGst = r => { r.gst_amount = (r.spend || 0) * gst / 100; r.total_cost = (r.spend || 0) + r.gst_amount; return r; };
     withGst(total); campaigns.forEach(withGst); daily.forEach(withGst);
-    return send(res, 200, { from, to, gst, total, campaigns, daily, blended: { sales: k.sales, orders: k.placed, roas: k.roas, cpa: k.cpa } });
+    return send(res, 200, { from, to, gst, gstClaim: getSettings().ad_gst_claim === 1, total, campaigns, daily, blended: { sales: k.sales, orders: k.placed, roas: k.roas, cpa: k.cpa } });
   }
   if (p === '/api/ads/import' && m === 'POST') {
     const { rows } = await readBody(req);
@@ -360,6 +365,7 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`Wellora Profit Desk running at http://localhost:${PORT}`);
   const c = connections();
   console.log(`Shopify: ${c.shopify ? 'connected' : 'not connected'} | Meta Ads: ${c.meta ? 'connected' : 'not connected'} | auto-sync every ${SYNC_MIN} min`);
+  setTimeout(() => { try { riskByOrder(); } catch { /* warm the pincode list so the Risk tab opens fast */ } }, 3000);
   syncAll();
   setInterval(syncAll, SYNC_MIN * 60 * 1000);
 });

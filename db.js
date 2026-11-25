@@ -152,8 +152,10 @@ export const DEFAULTS = {
   pack: 15,
   cod_fee: 30,
   cod_fee_pct: 0,        // COD charge as a percent of the order amount (Dropship India charges 1%), added to the fixed COD fee
+  msg_fee: 0,            // WhatsApp message cost per order (₹), counted on every order that is not cancelled
   gateway_pct: 2,
   platform_pct: 0,
+  ad_gst_claim: 0,       // 1 = the GST charged on ads comes back as tax credit, so it is not counted as a cost in profit (Meta wallet still pays it)
   ad_gst: 18,            // GST Meta adds on top of ad spend (set 0 if you claim it back as input credit)
   fixed_monthly: 3000,
   opening_balance: 0,

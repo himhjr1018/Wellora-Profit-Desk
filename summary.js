@@ -1,15 +1,25 @@
 import { db, getSettings, daysAgo, todayIST, istDay, EFF_STATUS } from './db.js';
-import { filterOrders, campaignWhere, scopeFor } from './scope.js';
+import { filterOrders, campaignWhere, scopeFor, groupCost, groupRto } from './scope.js';
 
+// One place decides the product cost: the cost set on the product (Products tab) wins, then the Settings list, then the default.
 function costMap() {
   const m = {};
   for (const p of db.prepare('SELECT title, cost FROM products').all()) m[p.title] = p.cost;
+  for (const r of db.prepare('SELECT DISTINCT product FROM orders').all()) { const c = groupCost(r.product); if (c !== null && c !== undefined) m[r.product] = c; }
   return m;
 }
 
 // Money outcome of one order. Returns { profit, revenue, state }
 //  delivered -> realised profit; rto -> realised loss; new/shipped -> expected profit (not realised); cancelled -> 0
-export function orderEconomics(o, s, costs) {
+// RTO fee per product (Products tab). A product without one uses the Settings RTO fee.
+function rtoMap() {
+  const m = {};
+  for (const r of db.prepare('SELECT DISTINCT product FROM orders').all()) { const f = groupRto(r.product); if (f !== null && f !== undefined) m[r.product] = f; }
+  return m;
+}
+
+export function orderEconomics(o, s, costs, rtoFees = {}) {
+  const returnFee = rtoFees[o.product] ?? s.return_ship;
   const net = s.price_incl_gst ? o.total * 100 / (100 + s.gst) : o.total;
   const unit = costs[o.product] ?? s.default_cost;
   const cod = o.payment === 'cod';
@@ -18,8 +28,8 @@ export function orderEconomics(o, s, costs) {
     - (cod ? s.cod_fee + o.total * s.cod_fee_pct / 100 : 0)
     - (cod ? 0 : o.total * s.gateway_pct / 100)
     - o.total * s.platform_pct / 100
-    - s.pack;
-  const rtoLoss = -(s.ship + s.return_ship + s.pack);
+    - s.pack - s.msg_fee;
+  const rtoLoss = -(s.ship + returnFee + s.pack + s.msg_fee);
 
   if (o.status === 'delivered') return { profit: deliveredProfit, revenue: net, state: 'realised' };
   if (o.status === 'rto') return { profit: rtoLoss, revenue: 0, state: 'realised' };
@@ -33,12 +43,12 @@ export const STATUS_LABEL = { new: 'Placed', shipped: 'Shipped', delivered: 'Del
 // One search box for the whole table. Every word typed must appear somewhere in the row:
 // order, date, customer, phone, state, product, COD or prepaid, status, amount or profit: exactly the columns you see.
 export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '', to: toOpt = '', product = '' } = {}) {
-  const s = getSettings(), costs = costMap();
+  const s = getSettings(), costs = costMap(), rtoFees = rtoMap();
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
   const from = valid(fromOpt) ? fromOpt : days > 0 ? daysAgo(days - 1) : '0000-00-00';
   const to = valid(toOpt) ? toOpt : '9999-12-31';
   let rows = db.prepare(`SELECT o.*, ${EFF_STATUS} AS eff FROM orders o LEFT JOIN supplier_panel p ON p.order_name = o.name WHERE o.day >= ? AND o.day <= ? ORDER BY o.created_at DESC`).all(from, to)
-    .map(o => { const x = { ...o, status: o.eff }; return { ...x, ...orderEconomics(x, s, costs) }; });
+    .map(o => { const x = { ...o, status: o.eff }; return { ...x, ...orderEconomics(x, s, costs, rtoFees) }; });
   rows = filterOrders(rows, product);
   if (status) rows = rows.filter(o => o.status === status);
   const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
@@ -54,7 +64,7 @@ export function listOrders({ days = 30, status = '', q = '', from: fromOpt = '',
 
 // Pass days for "last N days", or an explicit from/to (YYYY-MM-DD) for a custom window.
 export function summary(days = 30, fromOpt = '', toOpt = '', product = '') {
-  const s = getSettings(), costs = costMap();
+  const s = getSettings(), costs = costMap(), rtoFees = rtoMap();
   const valid = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '');
   // The first day with any order or ad spend. A "last 30 days" view never starts before this,
   // so days before the store existed are not counted (matters for fixed costs and the chart).
@@ -72,16 +82,16 @@ export function summary(days = 30, fromOpt = '', toOpt = '', product = '') {
   const counts = { new: 0, shipped: 0, delivered: 0, rto: 0, cancelled: 0 };
   const daily = {};
   const day = d => (daily[d] ||= { day: d, orders: 0, revenue: 0, gross: 0, ads: 0, adGst: 0, salesProj: 0 });
-  let revenue = 0, gross = 0, expected = 0, sales = 0, codOrders = 0;
+  let revenue = 0, gross = 0, expected = 0, sales = 0, codOrders = 0, ifDeliveredSum = 0, rtoLossSum = 0, rtoLossSumSettled = 0;
   let salesIfDelivered = 0, salesDelivered = 0, rtoValue = 0;   // product sales (order totals) under the two views
   const statusValue = {}, byPayment = { cod: 0, prepaid: 0 }, byProduct = {};   // breakdowns of ALL orders, cancelled included
 
   for (const o of orders) {
     counts[o.status] = (counts[o.status] || 0) + 1;
-    const e = orderEconomics(o, s, costs);
+    const e = orderEconomics(o, s, costs, rtoFees);
     const d = day(o.day);
     d.orders++;
-    if (o.status !== 'cancelled') { sales += o.total; if (o.payment === 'cod') codOrders++; }
+    if (o.status !== 'cancelled') { sales += o.total; if (o.payment === 'cod') codOrders++; ifDeliveredSum += orderEconomics({ ...o, status: 'shipped' }, s, costs, rtoFees).profit; rtoLossSum += orderEconomics({ ...o, status: 'rto' }, s, costs, rtoFees).profit * -1; }
     statusValue[o.status] = (statusValue[o.status] || 0) + o.total;
     byPayment[o.payment] = (byPayment[o.payment] || 0) + 1;
     const bp = (byProduct[o.product] ||= { product: o.product, orders: 0, value: 0 });
@@ -91,19 +101,26 @@ export function summary(days = 30, fromOpt = '', toOpt = '', product = '') {
     if (o.status !== 'cancelled' && o.status !== 'rto') { salesIfDelivered += o.total; d.salesProj += o.total; }   // Placed + Shipped + Delivered
     if (e.state === 'realised') { revenue += e.revenue; gross += e.profit; d.revenue += e.revenue; d.gross += e.profit; }
     else if (e.state === 'expected') expected += e.profit;
+    if (o.status === 'rto') rtoLossSumSettled += e.profit * -1;
   }
 
   // Fill every day in range so the chart has no gaps
   for (let i = 0; i < span; i++) day(new Date(Date.parse(from) + i * 864e5).toISOString().slice(0, 10));
   let adSpend = 0;
-  for (const [d, v] of Object.entries(adByDay)) { day(d).ads = v; day(d).adGst = v * s.ad_gst / 100; adSpend += v; }
-  const adGst = adSpend * s.ad_gst / 100;
+  for (const [d, v] of Object.entries(adByDay)) { day(d).ads = v; day(d).adGst = s.ad_gst_claim ? 0 : v * s.ad_gst / 100; adSpend += v; }   // the chart counts GST only when it is a real cost
+  const adGst = adSpend * s.ad_gst / 100, adGstCost = s.ad_gst_claim ? 0 : adGst;
 
   const fixed = s.fixed_monthly / 30 * span;
-  const net = gross - adSpend - adGst - fixed;
+  const net = gross - adSpend - adGstCost - fixed;
   // where the shipped orders are, according to Dropship India's panel
   const shipDetail = { out_for_delivery: 0, undelivered: 0, in_transit: 0 };
   for (const o of orders) if (o.status === 'shipped') { if (o.panel_status === 'OUT_FOR_DELIVERY') shipDetail.out_for_delivery++; else if (o.panel_status === 'UNDELIVERED') shipDetail.undelivered++; else shipDetail.in_transit++; }
+  // Breakeven delivery rate: the share of orders that must be delivered so that profit covers the ads.
+  // Each delivered order earns avgDelivered, each returned order loses rtoLoss; ads cost adPerOrder per live order.
+  const live0 = orders.length - counts.cancelled, rtoLoss = live0 ? rtoLossSum / live0 : s.ship + s.return_ship + s.pack + s.msg_fee;
+  const avgDelivered = live0 ? ifDeliveredSum / live0 : 0;
+  const adPerOrder = live0 ? (adSpend + adGstCost) / live0 : 0;
+  const breakeven = live0 && avgDelivered + rtoLoss > 0 ? Math.min(1, Math.max(0, (adPerOrder + rtoLoss) / (avgDelivered + rtoLoss))) * 100 : null;
   const settled = counts.delivered + counts.rto;
   const placed = orders.length - counts.cancelled;
 
@@ -159,8 +176,8 @@ export function summary(days = 30, fromOpt = '', toOpt = '', product = '') {
       delivered: counts.delivered, rto: counts.rto,
       rtoRate: settled ? counts.rto / settled * 100 : 0,
       codShare: placed ? codOrders / placed * 100 : 0,
-      revenue, gross, adSpend, adGst, fixed, net,
-      expectedPending: expected,
+      revenue, gross, adSpend, adGst, adGstCost, gstClaimed: !!s.ad_gst_claim, fixed, net,
+      expectedPending: expected, rtoLossTotal: rtoLossSumSettled, breakeven, avgDelivered, rtoLoss, adPerOrder,
       salesIfDelivered, salesDelivered, rtoValue,
       netIfDelivered: net + expected,    // net profit if every Placed and Shipped order ends up delivered
       settled,

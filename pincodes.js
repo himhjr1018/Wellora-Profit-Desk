@@ -112,4 +112,71 @@ export function checkPincode({ zip, province, city, source }) {
   return flags;
 }
 
-export const pincodeStatus = () => { const d = directory(); return { loaded: d.loaded, rows: d.rows, error: d.error || null, file: FILE }; };
+// ---------- Courier serviceability (Delhivery, Ekart) ----------
+// Optional. Put each courier's serviceable-pincode export in data/. Without a file that courier is skipped.
+//   Delhivery: data/delhivery-pincodes.json (saved response of the Pincode Serviceability API) or .csv
+//   Ekart:     data/ekart-pincodes.csv (or .json) downloaded from the seller panel
+// CSV needs a pincode column (pincode / pin / postal code). Optional "cod" and "prepaid" columns (Y/N) are used when present.
+const DATA = path.join(ROOT, 'data');
+const COURIERS = [
+  { id: 'delhivery', label: 'Delhivery', env: 'DELHIVERY_PINCODE_FILE', files: ['delhivery-pincodes.json', 'delhivery-pincodes.csv'] },
+  { id: 'ekart', label: 'Ekart', env: 'EKART_PINCODE_FILE', files: ['ekart-pincodes.csv', 'ekart-pincodes.json'] }
+];
+const yes = v => /^(y|yes|true|1)$/i.test(String(v ?? '').trim());
+const tri = v => (v === undefined || v === null || String(v).trim() === '') ? null : yes(v);   // null = column missing or blank
+
+const courierCache = {};
+function loadCourier(c) {
+  const file = (process.env[c.env] && existsSync(process.env[c.env]) && process.env[c.env]) || c.files.map(f => path.join(DATA, f)).find(existsSync);
+  if (!file) return { loaded: false, rows: 0, map: null };
+  const m = statSync(file).mtimeMs, hit = courierCache[c.id];
+  if (hit && hit.file === file && hit.mtime === m) return hit;
+  const map = new Map();
+  const put = (pin, cod, prepaid) => {
+    pin = String(pin ?? '').replace(/\D/g, '');
+    if (pin.length !== 6) return;
+    const e = map.get(pin) || { cod: null, prepaid: null };
+    if (cod !== null) e.cod = e.cod || cod;
+    if (prepaid !== null) e.prepaid = e.prepaid || prepaid;
+    map.set(pin, e);
+  };
+  try {
+    const text = readFileSync(file, 'utf8');
+    if (file.endsWith('.json')) {
+      const j = JSON.parse(text);
+      for (const it of Array.isArray(j) ? j : (j.delivery_codes || [])) {
+        const p = it.postal_code || it;   // Delhivery wraps each pincode in postal_code
+        put(p.pin ?? p.pincode ?? p.postal_code, tri(p.cod), tri(p.pre_paid ?? p.prepaid));
+      }
+    } else {
+      const all = parseCsv(text), head = (all[0] || []).map(h => norm(h));
+      const col = (...n) => head.findIndex(h => n.includes(h));
+      const iPin = col('pincode', 'pin', 'postalcode', 'zip'), iCod = col('cod'), iPre = col('prepaid', 'prepaidpayment');
+      if (iPin < 0) return { loaded: false, rows: 0, map: null, error: `${path.basename(file)} needs a pincode column` };
+      for (const r of all.slice(1)) put(r[iPin], iCod >= 0 ? tri(r[iCod]) : null, iPre >= 0 ? tri(r[iPre]) : null);
+    }
+  } catch (err) { return { loaded: false, rows: 0, map: null, error: `${path.basename(file)}: ${err.message}` }; }
+  return (courierCache[c.id] = { loaded: true, rows: map.size, map, file, mtime: m });
+}
+
+// Soft flags only: the customer can still order, you decide whether to call, ask for prepaid or ship anyway.
+export function courierFlags({ zip, payment }) {
+  const z = String(zip || '').replace(/\s+/g, '');
+  if (!/^[1-9]\d{5}$/.test(z)) return [];
+  const live = COURIERS.map(c => ({ c, d: loadCourier(c) })).filter(x => x.d.loaded);
+  if (!live.length) return [];
+  const hits = live.filter(x => x.d.map.has(z));
+  if (!hits.length) {
+    const names = live.map(x => x.c.label).join(' or ');
+    return [{ text: `Pincode ${z} is not on your ${names} serviceable list. Check before shipping or ask for prepaid`, weight: live.length > 1 ? 2 : 1 }];
+  }
+  if (payment === 'cod' && hits.every(x => x.d.map.get(z).cod === false))
+    return [{ text: `${hits.map(x => x.c.label).join(' and ')} serves ${z} but not for COD. Ask for prepaid`, weight: 2 }];
+  return [];
+}
+
+export const pincodeStatus = () => {
+  const d = directory();
+  const couriers = COURIERS.map(c => { const s = loadCourier(c); return { id: c.id, label: c.label, loaded: s.loaded, rows: s.rows, error: s.error || null }; });
+  return { loaded: d.loaded, rows: d.rows, error: d.error || null, file: FILE, couriers };
+};
